@@ -83,7 +83,40 @@ EXPOSE 8501
 CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
 ```
 
-### 2. Database Connection Issues
+### 2. Packages.txt Comment Error
+**Error**: `E: Unable to locate package #`, `E: Unable to locate package Essential`, etc.
+
+**Root Cause**: Comments in `packages.txt` file are being interpreted as package names
+
+**Solutions**:
+1. **Remove all comments** from `packages.txt` file
+2. **Use only valid package names** - one per line
+3. **No empty lines or special characters** at the beginning of lines
+
+**Correct format**:
+```
+libgl1-mesa-glx
+libglib2.0-0
+libsm6
+libxext6
+libxrender-dev
+libgomp1
+libgtk-3-0
+libjpeg-dev
+libpng-dev
+libtiff5-dev
+```
+
+**Incorrect format** (causes errors):
+```
+# Essential system dependencies for OpenCV
+libgl1-mesa-glx
+# Image processing libraries
+libjpeg-dev
+libpng-dev
+```
+
+### 3. Database Connection Issues
 **Error**: Database connection failures
 
 **Solutions**:
@@ -92,7 +125,7 @@ CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0
 3. **Use connection pooling** for better performance
 4. **Test connection locally** first
 
-### 3. Memory Issues
+### 4. Memory Issues
 **Error**: Out of memory errors during OCR processing
 
 **Solutions**:
@@ -100,7 +133,7 @@ CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0
 2. **Optimize image processing** (already implemented)
 3. **Use smaller batch sizes** for OCR processing
 
-### 4. Package Version Conflicts
+### 5. Package Version Conflicts
 **Error**: Version conflicts between packages
 
 **Solutions**:

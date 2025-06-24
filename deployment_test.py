@@ -162,12 +162,27 @@ def test_packages_file():
         
         # Extract package names (skip comments and empty lines)
         packages = []
-        for line in lines:
-            line = line.strip()
-            if line and not line.startswith('#'):
-                packages.append(line)
+        issues = []
         
-        print(f"   ✅ Found {len(packages)} packages")
+        for i, line in enumerate(lines, 1):
+            line = line.strip()
+            if line:
+                if line.startswith('#'):
+                    issues.append(f"Line {i}: Comment found - '{line}' (remove all comments)")
+                elif line.startswith(' ') or line.startswith('\t'):
+                    issues.append(f"Line {i}: Leading whitespace found - '{line}'")
+                elif not line.isalnum() and not any(c in line for c in ['-', '_', '.', '+']):
+                    issues.append(f"Line {i}: Invalid package name - '{line}'")
+                else:
+                    packages.append(line)
+        
+        print(f"   ✅ Found {len(packages)} valid packages")
+        
+        if issues:
+            print("   ⚠️ Issues found in packages.txt:")
+            for issue in issues:
+                print(f"      {issue}")
+            return False
         
         # Check for duplicates
         duplicates = [pkg for pkg in set(packages) if packages.count(pkg) > 1]
@@ -175,6 +190,7 @@ def test_packages_file():
             print(f"   ⚠️ Duplicate packages found: {duplicates}")
             return False
         
+        print("   ✅ packages.txt is valid")
         return True
         
     except Exception as e:
