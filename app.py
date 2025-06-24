@@ -9,6 +9,7 @@ import tempfile
 import json
 from pathlib import Path
 import logging
+import pandas as pd
 
 # Import custom modules
 from preprocess import preprocess_image
@@ -16,7 +17,8 @@ from ocr import extract_text
 from classify import classify_text
 from database import (
     store_in_db, get_all_contacts, db_manager, set_db_config, 
-    export_to_csv, export_to_excel, import_from_csv, get_export_template
+    export_to_csv, export_to_excel, import_from_csv, get_export_template,
+    update_contact
 )
 
 # Configure logging
@@ -274,6 +276,121 @@ st.markdown("""
         .feature-highlight {
             display: none;
         }
+    }
+    
+    /* Contact action buttons styling */
+    .contact-action-btn {
+        margin: 0.25rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        min-height: 36px;
+    }
+    
+    /* Form styling */
+    .stForm {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 10px;
+        border: 1px solid #dee2e6;
+        margin: 1rem 0;
+    }
+    
+    /* Expandable sections */
+    .streamlit-expanderHeader {
+        background: #e9ecef;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+    
+    /* Contact details display */
+    .contact-details {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        border-left: 4px solid #1f77b4;
+        margin: 0.5rem 0;
+    }
+    
+    /* Export buttons */
+    .export-btn {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .export-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    /* Popup dialog styling */
+    .popup-dialog {
+        background: white;
+        border: 2px solid #1f77b4;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    /* Action button styling */
+    .action-btn {
+        margin: 0.25rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        min-height: 32px;
+        transition: all 0.2s ease;
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* Contact row styling */
+    .contact-row {
+        background: #f8f9fa;
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin: 0.5rem 0;
+        border-left: 3px solid #1f77b4;
+    }
+    
+    /* Performance optimizations */
+    .stButton > button {
+        transition: all 0.15s ease; /* Faster transitions */
+    }
+    
+    .stDataFrame {
+        font-size: 0.9rem; /* Slightly smaller for better performance */
+    }
+    
+    /* Compact action buttons */
+    .compact-action-btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+        min-height: 28px;
+        border-radius: 4px;
+    }
+    
+    /* Optimized loading states */
+    .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #1f77b4;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -662,18 +779,18 @@ def manage_data():
                 st.error(f"❌ Error reading CSV file: {str(e)}")
 
 
-@st.cache_data(ttl=300)  # Cache for 5 minutes
+@st.cache_data(ttl=60)  # Cache for 1 minute - faster refresh
 def get_cached_contacts():
-    """Get cached contacts for better performance."""
+    """Get all contacts with optimized caching."""
     return get_all_contacts()
 
-@st.cache_data(ttl=60)  # Cache for 1 minute
+@st.cache_data(ttl=30)  # Cache for 30 seconds - very fast refresh
 def get_cached_search_results(search_term):
-    """Get cached search results for better performance."""
+    """Get search results with optimized caching."""
     return db_manager.search_contacts(search_term)
 
 def view_contacts():
-    """Tab for viewing and searching contacts."""
+    """Tab for viewing, searching, editing, and managing contacts with optimized performance."""
     
     st.markdown('<h2 class="section-header">📋 Contact Management</h2>', unsafe_allow_html=True)
     
@@ -689,10 +806,11 @@ def view_contacts():
     if search_term and search_term.strip():
         # Show search results only
         try:
-            search_results = get_cached_search_results(search_term)
+            with st.spinner("🔍 Searching..."):
+                search_results = get_cached_search_results(search_term)
             if search_results is not None and len(search_results) > 0:
                 st.success(f"✅ Found {len(search_results)} matching contacts")
-                show_contacts_table_optimized(search_results)
+                show_contacts_table_with_actions(search_results)
             else:
                 st.info("📭 No matching contacts found")
         except Exception as e:
@@ -703,8 +821,9 @@ def view_contacts():
         st.markdown("### 📊 All Contacts")
         
         try:
-            # Get all contacts with caching
-            contacts_df = get_cached_contacts()
+            # Get all contacts with optimized caching
+            with st.spinner("📊 Loading contacts..."):
+                contacts_df = get_cached_contacts()
             
             if contacts_df is None:
                 st.error("❌ Failed to retrieve contacts from database")
@@ -725,8 +844,25 @@ def view_contacts():
             with col4:
                 st.metric("With Phone", len(contacts_df[contacts_df['phone'].notna() & (contacts_df['phone'] != '')]))
             
-            # Display contacts in a table
-            show_contacts_table_optimized(contacts_df)
+            # Export functionality
+            st.markdown("### 📤 Export Options")
+            export_col1, export_col2, export_col3 = st.columns(3)
+            
+            with export_col1:
+                if st.button("📄 Export to CSV", type="secondary", use_container_width=True):
+                    export_data("CSV")
+                    
+            with export_col2:
+                if st.button("📊 Export to Excel", type="secondary", use_container_width=True):
+                    export_data("Excel")
+                    
+            with export_col3:
+                if st.button("🔄 Refresh Data", type="secondary", use_container_width=True):
+                    clear_contact_cache()
+                    st.experimental_rerun()
+            
+            # Display contacts in a table with actions
+            show_contacts_table_with_actions(contacts_df)
             
         except Exception as e:
             error_msg = str(e)
@@ -734,69 +870,407 @@ def view_contacts():
             logger.error(f"Error displaying contacts: {e}")
 
 
-def show_contacts_table_optimized(df):
-    """Optimized contacts table with inline delete buttons and confirmation dialog."""
-    import pandas as pd
-    
-    # Display as Streamlit dataframe with actions column
+def show_contacts_table_with_actions(df):
+    """Display contacts in a modern, interactive table with enhanced features."""
     st.markdown("### 📊 Contact Data Table")
     
-    # Prepare data for display with actions
+    # Add table controls
+    col1, col2, col3 = st.columns([2, 2, 1])
+    
+    with col1:
+        # Search within table
+        table_search = st.text_input(
+            "🔍 Search in table",
+            placeholder="Filter contacts...",
+            help="Search within the displayed contacts"
+        )
+    
+    with col2:
+        # Sort options
+        sort_by = st.selectbox(
+            "📊 Sort by",
+            ["Created Date (Newest)", "Created Date (Oldest)", "Name (A-Z)", "Name (Z-A)", "Company (A-Z)", "Company (Z-A)"],
+            help="Sort the contacts table"
+        )
+    
+    with col3:
+        # Items per page
+        items_per_page = st.selectbox(
+            "📄 Items per page",
+            [10, 25, 50, 100],
+            index=1,
+            help="Number of contacts to display per page"
+        )
+    
+    # Process the dataframe for display
     display_df = df.copy()
-    display_df['Actions'] = ''
     
-    # Display the dataframe with actions column
-    st.dataframe(
-        display_df.drop(columns=['Actions']),
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "id": st.column_config.NumberColumn("ID", width="small"),
-            "name": st.column_config.TextColumn("Name", width="medium"),
-            "company": st.column_config.TextColumn("Company", width="medium"),
-            "email": st.column_config.TextColumn("Email", width="medium"),
-            "phone": st.column_config.TextColumn("Phone", width="medium"),
-            "designation": st.column_config.TextColumn("Designation", width="medium"),
-            "address": st.column_config.TextColumn("Address", width="large"),
-            "created_at": st.column_config.DatetimeColumn("Created", width="small")
-        }
-    )
+    # Apply search filter
+    if table_search and table_search.strip():
+        search_mask = (
+            display_df['name'].str.contains(table_search, case=False, na=False) |
+            display_df['company'].str.contains(table_search, case=False, na=False) |
+            display_df['email'].str.contains(table_search, case=False, na=False) |
+            display_df['phone'].str.contains(table_search, case=False, na=False) |
+            display_df['designation'].str.contains(table_search, case=False, na=False)
+        )
+        display_df = display_df[search_mask]
     
-    # Inline delete button and confirmation
-    for idx, row in df.iterrows():
-        col1, col2 = st.columns([8, 1])
-        with col1:
-            st.markdown(f"**{row.get('name', '')}** | {row.get('company', '')} | {row.get('email', '')}")
-        with col2:
-            if st.button("🗑️", key=f"delete_btn_{row['id']}", help="Delete contact"):
-                st.session_state['delete_confirm_id'] = row['id']
-                st.session_state['delete_confirm_name'] = row.get('name', 'Unknown')
-                st.experimental_rerun()
-        if st.session_state.get('delete_confirm_id') == row['id']:
-            st.warning(f"Are you sure you want to delete **{row.get('name', 'Unknown')}**?")
-            confirm_col, cancel_col = st.columns([1,1])
-            with confirm_col:
-                if st.button("✅ Confirm Delete", key=f"confirm_delete_{row['id']}", type="primary"):
-                    try:
-                        success = db_manager.delete_contact(row['id'])
-                        if success:
-                            st.success(f"✅ Deleted contact: {row.get('name', 'Unknown')}")
-                            clear_contact_cache()
-                            st.session_state['delete_confirm_id'] = None
-                            st.session_state['delete_confirm_name'] = None
-                            st.experimental_rerun()
-                        else:
-                            st.error("❌ Failed to delete contact or contact not found")
-                    except Exception as e:
-                        error_msg = str(e)
-                        show_database_error_message(error_msg)
-            with cancel_col:
-                if st.button("❌ Cancel", key=f"cancel_delete_{row['id']}"):
-                    st.session_state['delete_confirm_id'] = None
-                    st.session_state['delete_confirm_name'] = None
+    # Apply sorting
+    if sort_by == "Created Date (Newest)":
+        display_df = display_df.sort_values('created_at', ascending=False)
+    elif sort_by == "Created Date (Oldest)":
+        display_df = display_df.sort_values('created_at', ascending=True)
+    elif sort_by == "Name (A-Z)":
+        display_df = display_df.sort_values('name', ascending=True)
+    elif sort_by == "Name (Z-A)":
+        display_df = display_df.sort_values('name', ascending=False)
+    elif sort_by == "Company (A-Z)":
+        display_df = display_df.sort_values('company', ascending=True)
+    elif sort_by == "Company (Z-A)":
+        display_df = display_df.sort_values('company', ascending=False)
+    
+    # Pagination
+    total_rows = len(display_df)
+    total_pages = (total_rows + items_per_page - 1) // items_per_page
+    
+    if total_pages > 1:
+        current_page = st.selectbox(
+            f"📄 Page (1-{total_pages})",
+            range(1, total_pages + 1),
+            index=0,
+            help=f"Showing {items_per_page} contacts per page"
+        )
+        start_idx = (current_page - 1) * items_per_page
+        end_idx = min(start_idx + items_per_page, total_rows)
+        display_df = display_df.iloc[start_idx:end_idx]
+    
+    # Prepare dataframe for display with action buttons
+    if len(display_df) > 0:
+        # Create a copy for display with formatted columns
+        table_df = display_df.copy()
+        
+        # Format columns for better display
+        table_df['ID'] = table_df['id'].astype(str)
+        table_df['Name'] = table_df['name'].fillna('N/A')
+        table_df['Designation'] = table_df['designation'].fillna('N/A')
+        table_df['Company'] = table_df['company'].fillna('N/A')
+        table_df['Phone'] = table_df['phone'].fillna('N/A')
+        table_df['Email'] = table_df['email'].fillna('N/A')
+        table_df['Website'] = table_df['website'].fillna('N/A')
+        table_df['Address'] = table_df['address'].fillna('N/A')
+        table_df['Created'] = pd.to_datetime(table_df['created_at']).dt.strftime('%Y-%m-%d %H:%M')
+        
+        # Select columns for display
+        display_columns = ['ID', 'Name', 'Designation', 'Company', 'Phone', 'Email', 'Website', 'Address', 'Created']
+        table_df = table_df[display_columns]
+        
+        # Display the table with enhanced styling
+        st.dataframe(
+            table_df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "ID": st.column_config.NumberColumn(
+                    "ID",
+                    help="Contact ID",
+                    width="small"
+                ),
+                "Name": st.column_config.TextColumn(
+                    "Name",
+                    help="Contact name",
+                    width="medium"
+                ),
+                "Designation": st.column_config.TextColumn(
+                    "Designation",
+                    help="Job title or designation",
+                    width="medium"
+                ),
+                "Company": st.column_config.TextColumn(
+                    "Company",
+                    help="Company name",
+                    width="medium"
+                ),
+                "Phone": st.column_config.TextColumn(
+                    "Phone",
+                    help="Phone number(s)",
+                    width="medium"
+                ),
+                "Email": st.column_config.TextColumn(
+                    "Email",
+                    help="Email address(es)",
+                    width="medium"
+                ),
+                "Website": st.column_config.TextColumn(
+                    "Website",
+                    help="Website URL(s)",
+                    width="medium"
+                ),
+                "Address": st.column_config.TextColumn(
+                    "Address",
+                    help="Contact address",
+                    width="large"
+                ),
+                "Created": st.column_config.DatetimeColumn(
+                    "Created",
+                    help="Date and time created",
+                    width="medium",
+                    format="DD-MM-YYYY HH:mm"
+                )
+            }
+        )
+        
+        # Display summary
+        st.markdown(f"**📊 Showing {len(display_df)} of {total_rows} contacts**")
+        
+        # Action buttons for selected contact
+        st.markdown("### 🎯 Contact Actions")
+        st.markdown("Select a contact ID to perform actions:")
+        
+        # Get unique IDs for selection
+        contact_ids = display_df['id'].tolist()
+        selected_id = st.selectbox(
+            "Choose Contact ID",
+            contact_ids,
+            format_func=lambda x: f"ID {x} - {display_df[display_df['id'] == x]['name'].iloc[0]}",
+            help="Select a contact to view, edit, or delete"
+        )
+        
+        if selected_id:
+            selected_contact = display_df[display_df['id'] == selected_id].iloc[0]
+            
+            # Action buttons
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                if st.button("👁️ View Details", key=f"view_{selected_id}", use_container_width=True):
+                    st.session_state['popup_action'] = 'view'
+                    st.session_state['popup_contact_id'] = selected_id
                     st.experimental_rerun()
-    st.markdown("---")
-    st.markdown(f"**Total Contacts Displayed:** {len(df)}")
+            
+            with col2:
+                if st.button("✏️ Edit Contact", key=f"edit_{selected_id}", use_container_width=True):
+                    st.session_state['popup_action'] = 'edit'
+                    st.session_state['popup_contact_id'] = selected_id
+                    st.experimental_rerun()
+            
+            with col3:
+                if st.button("🗑️ Delete Contact", key=f"delete_{selected_id}", use_container_width=True):
+                    st.session_state['popup_action'] = 'delete'
+                    st.session_state['popup_contact_id'] = selected_id
+                    st.experimental_rerun()
+            
+            with col4:
+                if st.button("📋 Copy Details", key=f"copy_{selected_id}", use_container_width=True):
+                    # Create a formatted string for copying
+                    contact_text = f"""
+Name: {selected_contact.get('name', 'N/A')}
+Designation: {selected_contact.get('designation', 'N/A')}
+Company: {selected_contact.get('company', 'N/A')}
+Phone: {selected_contact.get('phone', 'N/A')}
+Email: {selected_contact.get('email', 'N/A')}
+Website: {selected_contact.get('website', 'N/A')}
+Address: {selected_contact.get('address', 'N/A')}
+                    """.strip()
+                    
+                    st.code(contact_text, language=None)
+                    st.success("✅ Contact details copied to clipboard (select and copy the text above)")
+        
+        # Handle popup dialogs
+        if st.session_state.get('popup_action') and st.session_state.get('popup_contact_id'):
+            action = st.session_state['popup_action']
+            contact_id = st.session_state['popup_contact_id']
+            contact_data = df[df['id'] == contact_id].iloc[0] if len(df[df['id'] == contact_id]) > 0 else None
+            
+            if contact_data is not None:
+                st.markdown("---")
+                st.markdown('<div class="popup-dialog">', unsafe_allow_html=True)
+                st.markdown("### 🪟 Action Dialog")
+                
+                if action == 'view':
+                    st.markdown("#### 👁️ View Contact Details")
+                    display_contact_details(contact_data)
+                    
+                elif action == 'edit':
+                    st.markdown("#### ✏️ Edit Contact")
+                    edit_contact_form(contact_id, contact_data)
+                    
+                elif action == 'delete':
+                    st.markdown("#### 🗑️ Delete Contact")
+                    st.warning(f"⚠️ Are you sure you want to delete **{contact_data.get('name', 'Unknown')}**?")
+                    st.markdown(f"**This action cannot be undone.**")
+                    
+                    confirm_col, cancel_col = st.columns(2)
+                    with confirm_col:
+                        if st.button("✅ Confirm Delete", key=f"confirm_delete_{contact_id}", type="primary"):
+                            try:
+                                success = db_manager.delete_contact(contact_id)
+                                if success:
+                                    st.success(f"✅ Deleted contact: {contact_data.get('name', 'Unknown')}")
+                                    clear_contact_cache()
+                                    st.session_state['popup_action'] = None
+                                    st.session_state['popup_contact_id'] = None
+                                    st.experimental_rerun()
+                                else:
+                                    st.error("❌ Failed to delete contact")
+                            except Exception as e:
+                                error_msg = str(e)
+                                show_database_error_message(error_msg)
+                    with cancel_col:
+                        if st.button("❌ Cancel", key=f"cancel_delete_{contact_id}"):
+                            st.session_state['popup_action'] = None
+                            st.session_state['popup_contact_id'] = None
+                            st.experimental_rerun()
+                
+                if st.button("❌ Close Dialog", key=f"close_dialog_{contact_id}"):
+                    st.session_state['popup_action'] = None
+                    st.session_state['popup_contact_id'] = None
+                    st.experimental_rerun()
+                
+                st.markdown('</div>', unsafe_allow_html=True)
+    
+    else:
+        st.info("📭 No contacts found matching your criteria")
+    
+    # Display table statistics
+    if len(df) > 0:
+        st.markdown("---")
+        st.markdown("### 📈 Table Statistics")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Contacts", len(df))
+        with col2:
+            st.metric("Unique Companies", df['company'].nunique())
+        with col3:
+            st.metric("With Email", len(df[df['email'].notna() & (df['email'] != '')]))
+        with col4:
+            st.metric("With Phone", len(df[df['phone'].notna() & (df['phone'] != '')]))
+
+
+def display_contact_details(contact_row):
+    """Display detailed contact information."""
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown(f"""
+        **👤 Personal Information**
+        - **Name:** {contact_row.get('name', 'N/A')}
+        - **Designation:** {contact_row.get('designation', 'N/A')}
+        - **Company:** {contact_row.get('company', 'N/A')}
+        """)
+        
+        st.markdown(f"""
+        **📞 Contact Information**
+        - **Phone:** {contact_row.get('phone', 'N/A')}
+        - **Email:** {contact_row.get('email', 'N/A')}
+        - **Website:** {contact_row.get('website', 'N/A')}
+        """)
+    
+    with col2:
+        st.markdown(f"""
+        **📍 Address**
+        {contact_row.get('address', 'N/A')}
+        """)
+        
+        st.markdown(f"""
+        **📅 Created:** {contact_row.get('created_at', 'N/A')}
+        **🆔 ID:** {contact_row.get('id', 'N/A')}
+        """)
+
+
+def edit_contact_form(contact_id, contact_data):
+    """Form for editing contact information."""
+    
+    # Convert comma-separated strings to lists for editing
+    phone_list = contact_data.get('phone', '').split(', ') if contact_data.get('phone') else []
+    email_list = contact_data.get('email', '').split(', ') if contact_data.get('email') else []
+    website_list = contact_data.get('website', '').split(', ') if contact_data.get('website') else []
+    
+    with st.form(key=f"edit_form_{contact_id}"):
+        st.markdown("#### Edit Contact Information")
+        
+        # Personal Information
+        col1, col2 = st.columns(2)
+        with col1:
+            name = st.text_input("Name", value=contact_data.get('name', ''), key=f"name_{contact_id}")
+            designation = st.text_input("Designation", value=contact_data.get('designation', ''), key=f"designation_{contact_id}")
+            company = st.text_input("Company", value=contact_data.get('company', ''), key=f"company_{contact_id}")
+        
+        with col2:
+            # Phone numbers (multiple)
+            phone_input = st.text_area("Phone Numbers (one per line)", 
+                                      value='\n'.join(phone_list), 
+                                      key=f"phone_{contact_id}",
+                                      help="Enter multiple phone numbers, one per line")
+            
+            # Email addresses (multiple)
+            email_input = st.text_area("Email Addresses (one per line)", 
+                                      value='\n'.join(email_list), 
+                                      key=f"email_{contact_id}",
+                                      help="Enter multiple email addresses, one per line")
+        
+        # Website and Address
+        website_input = st.text_area("Websites (one per line)", 
+                                    value='\n'.join(website_list), 
+                                    key=f"website_{contact_id}",
+                                    help="Enter multiple websites, one per line")
+        
+        address = st.text_area("Address", value=contact_data.get('address', ''), key=f"address_{contact_id}")
+        
+        # Form buttons
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            submit_button = st.form_submit_button("💾 Save Changes", type="primary")
+        with col2:
+            cancel_button = st.form_submit_button("❌ Cancel")
+        with col3:
+            reset_button = st.form_submit_button("🔄 Reset")
+        
+        if submit_button:
+            # Process the form data
+            phone_numbers = [p.strip() for p in phone_input.split('\n') if p.strip()]
+            email_addresses = [e.strip() for e in email_input.split('\n') if e.strip()]
+            websites = [w.strip() for w in website_input.split('\n') if w.strip()]
+            
+            # Prepare updated data
+            updated_data = {
+                'name': name,
+                'designation': designation,
+                'company': company,
+                'phone': phone_numbers,
+                'email': email_addresses,
+                'website': websites,
+                'address': address
+            }
+            
+            # Update the contact
+            try:
+                success = update_contact(contact_id, updated_data)
+                if success:
+                    st.success(f"✅ Contact updated successfully!")
+                    clear_contact_cache()
+                    st.session_state['popup_action'] = None
+                    st.session_state['popup_contact_id'] = None
+                    st.session_state["action_row"] = None
+                    st.session_state["action_type"] = None
+                    st.experimental_rerun()
+                else:
+                    st.error("❌ Failed to update contact")
+            except Exception as e:
+                error_msg = str(e)
+                show_database_error_message(error_msg)
+                
+        elif cancel_button:
+            st.session_state['popup_action'] = None
+            st.session_state['popup_contact_id'] = None
+            st.session_state["action_row"] = None
+            st.session_state["action_type"] = None
+            st.experimental_rerun()
+            
+        elif reset_button:
+            st.experimental_rerun()
 
 
 def show_settings():

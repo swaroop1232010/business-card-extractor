@@ -412,6 +412,49 @@ class DatabaseManager:
         
         return output.getvalue()
 
+    def update_contact(self, contact_id: int, data: Dict) -> bool:
+        """
+        Update a contact by ID.
+        
+        Args:
+            contact_id (int): Contact ID to update
+            data (dict): Dictionary containing updated contact fields
+            
+        Returns:
+            bool: True if updated successfully, False otherwise
+        """
+        try:
+            if not self.test_connection():
+                raise Exception("Database connection failed")
+            
+            # Prepare data for update
+            update_data = {
+                'name': data.get('name', ''),
+                'designation': data.get('designation', ''),
+                'company': data.get('company', ''),
+                'phone': ', '.join(data.get('phone', [])) if isinstance(data.get('phone'), list) else data.get('phone', ''),
+                'email': ', '.join(data.get('email', [])) if isinstance(data.get('email'), list) else data.get('email', ''),
+                'website': ', '.join(data.get('website', [])) if isinstance(data.get('website'), list) else data.get('website', ''),
+                'address': data.get('address', ''),
+                'contact_id': contact_id
+            }
+            
+            query = text("""
+            UPDATE contacts 
+            SET name = :name, designation = :designation, company = :company, 
+                phone = :phone, email = :email, website = :website, address = :address
+            WHERE id = :contact_id
+            """)
+            
+            with self.engine.begin() as conn:
+                result = conn.execute(query, update_data)
+                logger.info(f"Updated contact ID {contact_id}, rows affected: {result.rowcount}")
+                return result.rowcount > 0
+                
+        except Exception as e:
+            logger.error(f"Error updating contact: {e}")
+            return False
+
 
 # Global database manager instance
 db_manager = DatabaseManager()
@@ -515,6 +558,20 @@ def get_export_template() -> str:
         str: CSV template content
     """
     return db_manager.get_export_template()
+
+
+def update_contact(contact_id: int, data: Dict) -> bool:
+    """
+    Update a contact by ID.
+    
+    Args:
+        contact_id (int): Contact ID to update
+        data (dict): Dictionary containing updated contact fields
+        
+    Returns:
+        bool: True if updated successfully, False otherwise
+    """
+    return db_manager.update_contact(contact_id, data)
 
 
 if __name__ == "__main__":
