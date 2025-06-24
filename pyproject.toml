@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "business-card-extractor"
+version = "1.0.0"
+description = "Business Card Extraction with OCR"
+requires-python = ">=3.11"
+
+[tool.setuptools]
+packages = ["."]
+
+[tool.setuptools.package-data]
+"*" = ["*.txt", "*.md", "*.toml"] 

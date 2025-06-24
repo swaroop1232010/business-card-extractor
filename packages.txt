@@ -1,2 +1,12 @@
 libpq-dev
-postgresql-client 
+postgresql-client
+libjpeg-dev
+libpng-dev
+libfreetype6-dev
+liblcms2-dev
+libopenjp2-7-dev
+libtiff5-dev
+libwebp-dev
+libharfbuzz-dev
+libfribidi-dev
+libxcb1-dev 
