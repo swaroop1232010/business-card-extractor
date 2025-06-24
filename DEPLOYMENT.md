@@ -1,91 +1,211 @@
-# Streamlit Cloud Deployment Guide
+# Business Card Extractor - Deployment Guide
 
-## Files Created/Modified for Deployment
+## Overview
+This guide helps you deploy the Business Card Extractor app to various platforms, with special attention to resolving OpenCV installation issues.
 
-### 1. `requirements.txt`
-- Updated numpy to `>=1.26.0,<2.0.0` for pandas compatibility
-- Changed `psycopg2-binary` to `psycopg2` for better compatibility
-- Updated Pillow to `>=10.2.0` for Python 3.13 compatibility
-- Updated openpyxl to `>=3.1.2` for better compatibility
-- All other dependencies remain the same
+## Prerequisites
+- Python 3.11+
+- Git
+- Access to deployment platform (Streamlit Cloud, Heroku, etc.)
 
-### 2. `packages.txt` (NEW)
-- Added PostgreSQL development libraries:
-  - `libpq-dev` - Required for psycopg2 compilation
-  - `postgresql-client` - PostgreSQL client utilities
-- Added image processing libraries:
-  - `libjpeg-dev`, `libpng-dev`, `libfreetype6-dev` - For Pillow
-  - `liblcms2-dev`, `libopenjp2-7-dev`, `libtiff5-dev` - For additional image formats
-  - `libwebp-dev`, `libharfbuzz-dev`, `libfribidi-dev` - For webp and text rendering
-  - `libxcb1-dev` - For X11 support
+## Common Issues and Solutions
 
-### 3. `runtime.txt` (NEW)
-- Specified Python 3.11.9 for better package compatibility
-- Avoids Python 3.13 which has limited wheel support
+### 1. OpenCV Installation Error
+**Error**: `ModuleNotFoundError: No module named 'cv2'`
 
-### 4. `.streamlit/config.toml` (NEW)
-- Optimized Streamlit configuration for cloud deployment
-- Increased upload size limit
-- Disabled unnecessary features for better performance
+**Solutions**:
 
-### 5. `pyproject.toml` (NEW)
-- Modern Python packaging configuration
-- Specifies Python >=3.11 requirement
-- Helps with build system configuration
+#### For Streamlit Cloud:
+1. Ensure `packages.txt` includes OpenCV system dependencies
+2. Use `opencv-python-headless` instead of `opencv-python` for headless environments
+3. The updated `requirements.txt` includes both versions for compatibility
 
-## Deployment Steps
+#### For Heroku:
+1. Add buildpacks for system dependencies:
+   ```bash
+   heroku buildpacks:add --index 1 heroku/python
+   heroku buildpacks:add --index 2 https://github.com/heroku/heroku-buildpack-apt
+   ```
 
-1. **Push all changes to your GitHub repository**
-2. **Connect to Streamlit Cloud:**
-   - Go to [share.streamlit.io](https://share.streamlit.io)
-   - Connect your GitHub account
-   - Select your repository
-   - Set the main file path to: `app.py`
-   - Click "Deploy"
+2. Create `Aptfile` in root directory:
+   ```
+   libgl1-mesa-glx
+   libglib2.0-0
+   libsm6
+   libxext6
+   libxrender-dev
+   libgomp1
+   libgthread-2.0-0
+   libgtk-3-0
+   libavcodec-dev
+   libavformat-dev
+   libswscale-dev
+   libv4l-dev
+   libxvidcore-dev
+   libx264-dev
+   libjpeg-dev
+   libpng-dev
+   libtiff-dev
+   libatlas-base-dev
+   gfortran
+   ```
 
-3. **Environment Variables (if using external database):**
-   - Add your database credentials in Streamlit Cloud settings
-   - Example for PostgreSQL:
-     ```
-     DB_TYPE=postgresql
-     DB_HOST=your-host.com
-     DB_USER=your-username
-     DB_PASSWORD=your-password
-     DB_NAME=your-database
-     DB_PORT=5432
-     ```
+#### For Docker:
+1. Use a base image with OpenCV dependencies:
+   ```dockerfile
+   FROM python:3.11-slim
+   
+   # Install system dependencies
+   RUN apt-get update && apt-get install -y \
+       libgl1-mesa-glx \
+       libglib2.0-0 \
+       libsm6 \
+       libxext6 \
+       libxrender-dev \
+       libgomp1 \
+       libgthread-2.0-0 \
+       libgtk-3-0 \
+       libavcodec-dev \
+       libavformat-dev \
+       libswscale-dev \
+       libv4l-dev \
+       libxvidcore-dev \
+       libx264-dev \
+       libjpeg-dev \
+       libpng-dev \
+       libtiff-dev \
+       libatlas-base-dev \
+       gfortran \
+       && rm -rf /var/lib/apt/lists/*
+   
+   # Install Python dependencies
+   COPY requirements.txt .
+   RUN pip install -r requirements.txt
+   
+   # Copy application
+   COPY . .
+   
+   # Expose port
+   EXPOSE 8501
+   
+   # Run the app
+   CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+   ```
+
+### 2. Database Connection Issues
+**Error**: Database connection failures
+
+**Solutions**:
+1. Ensure database credentials are properly set as environment variables
+2. For cloud databases, whitelist your deployment IP
+3. Use connection pooling for better performance
+
+### 3. Memory Issues
+**Error**: Out of memory errors during OCR processing
+
+**Solutions**:
+1. Increase memory allocation in deployment settings
+2. Optimize image processing (already implemented in preprocess.py)
+3. Use smaller batch sizes for OCR processing
+
+## Platform-Specific Deployment
+
+### Streamlit Cloud
+1. Push your code to GitHub
+2. Connect your repository to Streamlit Cloud
+3. Set environment variables in Streamlit Cloud dashboard
+4. Deploy
+
+**Environment Variables**:
+```
+DATABASE_URL=your_database_connection_string
+```
+
+### Heroku
+1. Install Heroku CLI
+2. Create Heroku app:
+   ```bash
+   heroku create your-app-name
+   ```
+3. Add buildpacks (see above)
+4. Set environment variables:
+   ```bash
+   heroku config:set DATABASE_URL=your_database_connection_string
+   ```
+5. Deploy:
+   ```bash
+   git push heroku main
+   ```
+
+### Docker
+1. Build the image:
+   ```bash
+   docker build -t business-card-extractor .
+   ```
+2. Run the container:
+   ```bash
+   docker run -p 8501:8501 -e DATABASE_URL=your_database_connection_string business-card-extractor
+   ```
+
+## Testing Deployment
+
+### 1. Run the Test Script
+```bash
+python test_opencv.py
+```
+
+This will verify:
+- OpenCV import
+- Basic OpenCV functionality
+- Preprocess module import
+
+### 2. Test the Application
+1. Upload a sample business card image
+2. Verify OCR extraction works
+3. Check database storage
+4. Test table view functionality
 
 ## Troubleshooting
 
-### If you get Pillow build errors:
-1. **Check Python version:** Ensure `runtime.txt` specifies Python 3.11.9
-2. **Verify packages.txt:** Make sure all image processing libraries are included
-3. **Wait for build:** First deployment may take 5-10 minutes
-4. **Alternative:** If still failing, try updating to Pillow 11.x in requirements.txt
+### OpenCV Still Not Working?
+1. Try using `opencv-python-headless` only:
+   ```bash
+   pip uninstall opencv-python
+   pip install opencv-python-headless
+   ```
 
-### If you still get psycopg2 build errors:
-1. **Check Python version:** Ensure `runtime.txt` specifies Python 3.11.9
-2. **Verify packages.txt:** Make sure `libpq-dev` is included
-3. **Wait for build:** First deployment may take 5-10 minutes
+2. Check system dependencies:
+   ```bash
+   ldd $(python -c "import cv2; print(cv2.__file__)")
+   ```
 
-### If database connection fails:
-1. **Check credentials:** Verify all environment variables
-2. **Test connection:** Use the database test feature in the app
-3. **Check firewall:** Ensure your database allows connections from Streamlit Cloud
+3. Verify Python environment:
+   ```bash
+   python -c "import sys; print(sys.path)"
+   ```
 
-### If Streamlit Cloud ignores runtime.txt:
-1. **Contact Streamlit Support:** Some platforms may not respect runtime.txt
-2. **Use environment variables:** Set Python version in Streamlit Cloud settings
-3. **Consider alternative deployment:** Heroku, Railway, or other platforms
+### Database Issues?
+1. Test connection locally first
+2. Check firewall settings
+3. Verify connection string format
+4. Test with a simple connection script
 
-## Default Configuration
-
-The app will default to SQLite if no database credentials are provided, which works immediately without any external database setup.
+### Performance Issues?
+1. Monitor memory usage
+2. Optimize image processing parameters
+3. Use connection pooling
+4. Implement caching where appropriate
 
 ## Support
+If you continue to experience issues:
+1. Check the logs in your deployment platform
+2. Run the test script locally
+3. Verify all dependencies are correctly specified
+4. Check platform-specific documentation
 
-If you encounter issues:
-1. Check the Streamlit Cloud logs
-2. Verify all files are committed to your repository
-3. Ensure your database is accessible from external connections
-4. Consider downgrading to Python 3.11 if Python 3.13 continues to cause issues 
+## Files Modified for Deployment
+- `requirements.txt` - Updated with OpenCV compatibility
+- `packages.txt` - Added system dependencies for OpenCV
+- `runtime.txt` - Specified Python version
+- `test_opencv.py` - Created for testing OpenCV installation
+- `DEPLOYMENT.md` - This deployment guide 

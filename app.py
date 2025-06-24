@@ -784,90 +784,62 @@ def get_cached_contacts():
     """Get all contacts with optimized caching."""
     return get_all_contacts()
 
-@st.cache_data(ttl=30)  # Cache for 30 seconds - very fast refresh
-def get_cached_search_results(search_term):
-    """Get search results with optimized caching."""
-    return db_manager.search_contacts(search_term)
-
 def view_contacts():
-    """Tab for viewing, searching, editing, and managing contacts with optimized performance."""
+    """Tab for viewing, editing, and managing contacts with optimized performance."""
     
     st.markdown('<h2 class="section-header">📋 Contact Management</h2>', unsafe_allow_html=True)
     
-    # Search functionality
-    st.markdown("### 🔍 Search Contacts")
-    search_term = st.text_input(
-        "Search by name, company, or email",
-        placeholder="Enter search term...",
-        help="Search through all stored contacts"
-    )
+    # Show all contacts
+    st.markdown("### 📊 All Contacts")
     
-    # Handle search or display all contacts
-    if search_term and search_term.strip():
-        # Show search results only
-        try:
-            with st.spinner("🔍 Searching..."):
-                search_results = get_cached_search_results(search_term)
-            if search_results is not None and len(search_results) > 0:
-                st.success(f"✅ Found {len(search_results)} matching contacts")
-                show_contacts_table_with_actions(search_results)
-            else:
-                st.info("📭 No matching contacts found")
-        except Exception as e:
-            error_msg = str(e)
-            show_database_error_message(error_msg)
-    else:
-        # Show all contacts when no search term
-        st.markdown("### 📊 All Contacts")
+    try:
+        # Get all contacts with optimized caching
+        with st.spinner("📊 Loading contacts..."):
+            contacts_df = get_cached_contacts()
         
-        try:
-            # Get all contacts with optimized caching
-            with st.spinner("📊 Loading contacts..."):
-                contacts_df = get_cached_contacts()
-            
-            if contacts_df is None:
-                st.error("❌ Failed to retrieve contacts from database")
-                return
-            
-            if len(contacts_df) == 0:
-                st.info("📭 No contacts found in database")
-                return
-            
-            # Display summary statistics
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Total Contacts", len(contacts_df))
-            with col2:
-                st.metric("Companies", contacts_df['company'].nunique())
-            with col3:
-                st.metric("With Email", len(contacts_df[contacts_df['email'].notna() & (contacts_df['email'] != '')]))
-            with col4:
-                st.metric("With Phone", len(contacts_df[contacts_df['phone'].notna() & (contacts_df['phone'] != '')]))
-            
-            # Export functionality
-            st.markdown("### 📤 Export Options")
-            export_col1, export_col2, export_col3 = st.columns(3)
-            
-            with export_col1:
-                if st.button("📄 Export to CSV", type="secondary", use_container_width=True):
-                    export_data("CSV")
-                    
-            with export_col2:
-                if st.button("📊 Export to Excel", type="secondary", use_container_width=True):
-                    export_data("Excel")
-                    
-            with export_col3:
-                if st.button("🔄 Refresh Data", type="secondary", use_container_width=True):
-                    clear_contact_cache()
-                    st.experimental_rerun()
-            
-            # Display contacts in a table with actions
-            show_contacts_table_with_actions(contacts_df)
-            
-        except Exception as e:
-            error_msg = str(e)
-            show_database_error_message(error_msg)
-            logger.error(f"Error displaying contacts: {e}")
+        if contacts_df is None:
+            st.error("❌ Failed to retrieve contacts from database")
+            return
+        
+        if len(contacts_df) == 0:
+            st.info("📭 No contacts found in database")
+            return
+        
+        # Display summary statistics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Contacts", len(contacts_df))
+        with col2:
+            st.metric("Companies", contacts_df['company'].nunique())
+        with col3:
+            st.metric("With Email", len(contacts_df[contacts_df['email'].notna() & (contacts_df['email'] != '')]))
+        with col4:
+            st.metric("With Phone", len(contacts_df[contacts_df['phone'].notna() & (contacts_df['phone'] != '')]))
+        
+        # Export functionality
+        st.markdown("### 📤 Export Options")
+        export_col1, export_col2, export_col3 = st.columns(3)
+        
+        with export_col1:
+            if st.button("📄 Export to CSV", type="secondary", use_container_width=True):
+                export_data("CSV")
+                
+        with export_col2:
+            if st.button("📊 Export to Excel", type="secondary", use_container_width=True):
+                export_data("Excel")
+                
+        with export_col3:
+            if st.button("🔄 Refresh Data", type="secondary", use_container_width=True):
+                clear_contact_cache()
+                st.experimental_rerun()
+        
+        # Display contacts in a table with actions
+        show_contacts_table_with_actions(contacts_df)
+        
+    except Exception as e:
+        error_msg = str(e)
+        show_database_error_message(error_msg)
+        logger.error(f"Error displaying contacts: {e}")
 
 
 def show_contacts_table_with_actions(df):
@@ -878,19 +850,19 @@ def show_contacts_table_with_actions(df):
     col1, col2, col3 = st.columns([2, 2, 1])
     
     with col1:
-        # Search within table
-        table_search = st.text_input(
-            "🔍 Search in table",
-            placeholder="Filter contacts...",
-            help="Search within the displayed contacts"
-        )
-    
-    with col2:
         # Sort options
         sort_by = st.selectbox(
             "📊 Sort by",
             ["Created Date (Newest)", "Created Date (Oldest)", "Name (A-Z)", "Name (Z-A)", "Company (A-Z)", "Company (Z-A)"],
             help="Sort the contacts table"
+        )
+    
+    with col2:
+        # Name filter
+        name_filter = st.text_input(
+            "🔍 Filter by name",
+            placeholder="Enter name to filter...",
+            help="Filter contacts by name (case-insensitive)"
         )
     
     with col3:
@@ -905,16 +877,15 @@ def show_contacts_table_with_actions(df):
     # Process the dataframe for display
     display_df = df.copy()
     
-    # Apply search filter
-    if table_search and table_search.strip():
-        search_mask = (
-            display_df['name'].str.contains(table_search, case=False, na=False) |
-            display_df['company'].str.contains(table_search, case=False, na=False) |
-            display_df['email'].str.contains(table_search, case=False, na=False) |
-            display_df['phone'].str.contains(table_search, case=False, na=False) |
-            display_df['designation'].str.contains(table_search, case=False, na=False)
-        )
-        display_df = display_df[search_mask]
+    # Apply name filter
+    if name_filter and name_filter.strip():
+        try:
+            name_mask = display_df['name'].str.contains(name_filter, case=False, na=False)
+            display_df = display_df[name_mask]
+            st.success(f"🔍 Found {len(display_df)} contacts matching '{name_filter}'")
+        except Exception as e:
+            st.error(f"❌ Error applying name filter: {str(e)}")
+            display_df = df.copy()
     
     # Apply sorting
     if sort_by == "Created Date (Newest)":
@@ -1081,71 +1052,55 @@ Address: {selected_contact.get('address', 'N/A')}
             action = st.session_state['popup_action']
             contact_id = st.session_state['popup_contact_id']
             contact_data = df[df['id'] == contact_id].iloc[0] if len(df[df['id'] == contact_id]) > 0 else None
-            
             if contact_data is not None:
-                st.markdown("---")
-                st.markdown('<div class="popup-dialog">', unsafe_allow_html=True)
-                st.markdown("### 🪟 Action Dialog")
-                
-                if action == 'view':
-                    st.markdown("#### 👁️ View Contact Details")
-                    display_contact_details(contact_data)
-                    
-                elif action == 'edit':
-                    st.markdown("#### ✏️ Edit Contact")
-                    edit_contact_form(contact_id, contact_data)
-                    
-                elif action == 'delete':
-                    st.markdown("#### 🗑️ Delete Contact")
-                    st.warning(f"⚠️ Are you sure you want to delete **{contact_data.get('name', 'Unknown')}**?")
-                    st.markdown(f"**This action cannot be undone.**")
-                    
-                    confirm_col, cancel_col = st.columns(2)
-                    with confirm_col:
-                        if st.button("✅ Confirm Delete", key=f"confirm_delete_{contact_id}", type="primary"):
-                            try:
-                                success = db_manager.delete_contact(contact_id)
-                                if success:
-                                    st.success(f"✅ Deleted contact: {contact_data.get('name', 'Unknown')}")
-                                    clear_contact_cache()
-                                    st.session_state['popup_action'] = None
-                                    st.session_state['popup_contact_id'] = None
-                                    st.experimental_rerun()
-                                else:
-                                    st.error("❌ Failed to delete contact")
-                            except Exception as e:
-                                error_msg = str(e)
-                                show_database_error_message(error_msg)
-                    with cancel_col:
-                        if st.button("❌ Cancel", key=f"cancel_delete_{contact_id}"):
-                            st.session_state['popup_action'] = None
-                            st.session_state['popup_contact_id'] = None
-                            st.experimental_rerun()
-                
-                if st.button("❌ Close Dialog", key=f"close_dialog_{contact_id}"):
-                    st.session_state['popup_action'] = None
-                    st.session_state['popup_contact_id'] = None
-                    st.experimental_rerun()
-                
-                st.markdown('</div>', unsafe_allow_html=True)
+                with st.container():
+                    st.markdown("---")
+                    st.markdown('<div class="popup-dialog">', unsafe_allow_html=True)
+                    st.markdown("### 🪟 Action Dialog")
+                    if action == 'view':
+                        st.markdown("#### 👁️ View Contact Details")
+                        display_contact_details(contact_data)
+                    elif action == 'edit':
+                        st.markdown("#### ✏️ Edit Contact")
+                        edit_contact_form(contact_id, contact_data)
+                    elif action == 'delete':
+                        st.markdown("#### 🗑️ Delete Contact")
+                        st.warning(f"⚠️ Are you sure you want to delete **{contact_data.get('name', 'Unknown')}**?")
+                        confirm_col, cancel_col = st.columns(2)
+                        with confirm_col:
+                            if st.button("✅ Confirm Delete", key=f"confirm_delete_{contact_id}", type="primary"):
+                                try:
+                                    success = db_manager.delete_contact(contact_id)
+                                    if success:
+                                        st.success(f"✅ Deleted contact: {contact_data.get('name', 'Unknown')}")
+                                        clear_contact_cache()
+                                        st.session_state['popup_action'] = None
+                                        st.session_state['popup_contact_id'] = None
+                                        st.session_state["action_row"] = None
+                                        st.session_state["action_type"] = None
+                                        st.experimental_rerun()
+                                    else:
+                                        st.error("❌ Failed to delete contact")
+                                except Exception as e:
+                                    error_msg = str(e)
+                                    show_database_error_message(error_msg)
+                        with cancel_col:
+                            if st.button("❌ Cancel", key=f"cancel_delete_{contact_id}"):
+                                st.session_state['popup_action'] = None
+                                st.session_state['popup_contact_id'] = None
+                                st.session_state["action_row"] = None
+                                st.session_state["action_type"] = None
+                                st.experimental_rerun()
+                    if st.button("❌ Close Dialog", key=f"close_dialog_{contact_id}"):
+                        st.session_state['popup_action'] = None
+                        st.session_state['popup_contact_id'] = None
+                        st.session_state["action_row"] = None
+                        st.session_state["action_type"] = None
+                        st.experimental_rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
     
     else:
         st.info("📭 No contacts found matching your criteria")
-    
-    # Display table statistics
-    if len(df) > 0:
-        st.markdown("---")
-        st.markdown("### 📈 Table Statistics")
-        
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Total Contacts", len(df))
-        with col2:
-            st.metric("Unique Companies", df['company'].nunique())
-        with col3:
-            st.metric("With Email", len(df[df['email'].notna() & (df['email'] != '')]))
-        with col4:
-            st.metric("With Phone", len(df[df['phone'].notna() & (df['phone'] != '')]))
 
 
 def display_contact_details(contact_row):
@@ -1410,7 +1365,6 @@ def display_extracted_data_enhanced(data):
 def clear_contact_cache():
     """Clear contact cache when data is modified."""
     get_cached_contacts.clear()
-    get_cached_search_results.clear()
 
 def save_to_database(data):
     """Save extracted data to database."""

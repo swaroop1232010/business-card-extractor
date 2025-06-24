@@ -317,7 +317,7 @@ class DatabaseManager:
             contact_id (int): Contact ID to retrieve
             
         Returns:
-            dict: Contact data or None if not found
+            dict: Contact data dictionary, or None if not found
         """
         try:
             if not self.test_connection():
@@ -342,36 +342,6 @@ class DatabaseManager:
                 
         except Exception as e:
             logger.error(f"Error retrieving contact from database: {e}")
-            return None
-    
-    def search_contacts(self, search_term: str) -> Optional[pd.DataFrame]:
-        """
-        Search contacts by name, company, or email.
-        
-        Args:
-            search_term (str): Search term to look for
-            
-        Returns:
-            pandas.DataFrame: DataFrame containing matching contacts, or None if error
-        """
-        try:
-            if not self.test_connection():
-                raise Exception("Database connection failed")
-            
-            query = text("""
-            SELECT * FROM contacts 
-            WHERE name LIKE :search_term OR company LIKE :search_term OR email LIKE :search_term
-            ORDER BY created_at DESC
-            """)
-            
-            search_pattern = f"%{search_term}%"
-            df = pd.read_sql(query, self.engine, params={'search_term': search_pattern})
-            
-            logger.info(f"Found {len(df)} contacts matching '{search_term}'")
-            return df
-            
-        except Exception as e:
-            logger.error(f"Error searching contacts in database: {e}")
             return None
     
     def delete_contact(self, contact_id: int) -> bool:

@@ -1,22 +1,38 @@
-easyocr==1.7.1
-opencv-python==4.8.1.78
+# Core dependencies
 streamlit==1.31.0
-mysql-connector-python==8.3.0
-psycopg2==2.9.9
-sqlalchemy==2.0.30
 pandas==2.2.0
 numpy>=1.26.0,<2.0.0
 Pillow>=10.2.0
-openpyxl>=3.1.2
+
+# OpenCV - try multiple versions for compatibility
+opencv-python-headless>=4.8.0
+opencv-python>=4.8.0
+
+# OCR and AI
+easyocr==1.7.1
 torch>=1.9.0
 torchvision>=0.10.0
+
+# Database
+mysql-connector-python==8.3.0
+psycopg2==2.9.9
+sqlalchemy==2.0.30
+
+# Image processing
 scipy>=1.7.0
 scikit-image>=0.18.0
 python-bidi>=0.4.2
 PyYAML>=5.4.1
 Shapely>=1.7.0
 pyclipper>=1.2.0
+
+# Excel support
+openpyxl>=3.1.2
+
+# Build tools
 ninja>=1.10.0
+
+# Streamlit dependencies
 altair<6,>=4.0
 blinker<2,>=1.0.0
 cachetools<6,>=4.0
