@@ -1,3 +1,4 @@
+# Essential system dependencies for OpenCV
 libgl1-mesa-glx
 libglib2.0-0
 libsm6
@@ -5,8 +6,35 @@ libxext6
 libxrender-dev
 libgomp1
 libgtk-3-0
+
+# Image processing libraries
 libjpeg-dev
 libpng-dev
 libtiff5-dev
+libfreetype6-dev
+liblcms2-dev
+libopenjp2-7-dev
+libwebp-dev
+libharfbuzz-dev
+libfribidi-dev
+libxcb1-dev
+
+# Video processing dependencies
+libavcodec-dev
+libavformat-dev
+libswscale-dev
+libv4l-dev
+libxvidcore-dev
+libx264-dev
+
+# Additional dependencies
+libatlas-base-dev
+gfortran
+
+# PostgreSQL support
 libpq-dev
-postgresql-client 
+postgresql-client
+
+# Build tools
+build-essential
+pkg-config 

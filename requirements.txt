@@ -1,79 +1,80 @@
-# Core dependencies
+# Core Streamlit and data processing
 streamlit==1.31.0
 pandas==2.2.0
-numpy>=1.26.0,<2.0.0
-Pillow>=10.2.0
+numpy==1.26.4
+Pillow==10.2.0
 
-# OpenCV - use headless version for deployment
-opencv-python-headless>=4.8.0
+# OpenCV - Multiple options for deployment compatibility
+opencv-python-headless==4.8.1.78
+opencv-python==4.8.1.78
 
 # OCR and AI
 easyocr==1.7.1
-torch>=1.9.0
-torchvision>=0.10.0
+torch==2.1.2
+torchvision==0.16.2
 
-# Database
+# Database connectors
 mysql-connector-python==8.3.0
-psycopg2==2.9.9
+psycopg2-binary==2.9.9
 sqlalchemy==2.0.30
 
 # Image processing
-scipy>=1.7.0
-scikit-image>=0.18.0
-python-bidi>=0.4.2
-PyYAML>=5.4.1
-Shapely>=1.7.0
-pyclipper>=1.2.0
+scipy==1.11.4
+scikit-image==0.22.0
+python-bidi==0.4.2
+PyYAML==6.0.1
+Shapely==2.0.2
+pyclipper==1.3.0
 
 # Excel support
-openpyxl>=3.1.2
+openpyxl==3.1.2
 
 # Build tools
-ninja>=1.10.0
+ninja==1.11.1
 
-# Streamlit dependencies
-altair<6,>=4.0
-blinker<2,>=1.0.0
-cachetools<6,>=4.0
-click<9,>=7.0
-gitpython!=3.1.19,<4,>=3.0.7
-importlib-metadata<8,>=1.4
-packaging>=21.0
-protobuf<5,>=3.20
-pyarrow>=6.0
-python-dateutil<3,>=2.7.3
-requests<3,>=2.27
-rich<14,>=10.14.0
-toml<2,>=0.10.1
-tornado<7,>=6.0.3
-watchdog>=2.1.5
-pytz>=2020.1
-tzdata>=2022.7
-jinja2
-jsonschema>=3.0
-toolz
-colorama
-gitdb<5,>=4.0.1
-zipp>=0.5
-six>=1.5
-charset-normalizer<4,>=2
-idna<4,>=2.5
-urllib3<3,>=1.21.1
-certifi>=2017.4.17
-markdown-it-py>=2.2.0
-pygments<3.0.0,>=2.13.0
-filelock
-sympy>=1.13.3
-networkx
-fsspec
-imageio>=2.33
-tifffile>=2022.8.12
-lazy-loader>=0.4
-smmap<6,>=3.0.1
-MarkupSafe>=2.0
-attrs>=22.2.0
-jsonschema-specifications>=2023.03.6
-referencing>=0.28.4
-rpds-py>=0.7.1
-mdurl~=0.1
-mpmath<1.4,>=1.1.0 
+# Streamlit dependencies (specific versions for stability)
+altai==5.2.0
+blinker==1.7.0
+cachetools==5.3.2
+click==8.1.7
+gitpython==3.1.41
+importlib-metadata==6.8.0
+packaging==23.2
+protobuf==4.25.1
+pyarrow==14.0.2
+python-dateutil==2.8.2
+requests==2.31.0
+rich==13.7.0
+toml==0.10.2
+tornado==6.4
+watchdog==3.0.0
+pytz==2023.3
+tzdata==2023.4
+jinja2==3.1.2
+jsonschema==4.20.0
+toolz==0.12.0
+colorama==0.4.6
+gitdb==4.0.11
+zipp==3.17.0
+six==1.16.0
+charset-normalizer==3.3.2
+idna==3.6
+urllib3==2.1.0
+certifi==2023.11.17
+markdown-it-py==3.0.0
+pygments==2.17.2
+filelock==3.13.1
+sympy==1.12
+networkx==3.2.1
+fsspec==2023.12.0
+imageio==2.33.1
+tifffile==2023.12.18
+lazy-loader==0.3
+smmap==5.0.1
+MarkupSafe==2.1.3
+attrs==23.2.0
+jsonschema-specifications==2023.12.02
+referencing==0.32.1
+rpds-py==0.17.1
+mdurl==0.1.2
+mpmath==1.3.0 
