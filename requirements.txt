@@ -4,9 +4,8 @@ pandas==2.2.0
 numpy>=1.26.0,<2.0.0
 Pillow>=10.2.0
 
-# OpenCV - try multiple versions for compatibility
+# OpenCV - use headless version for deployment
 opencv-python-headless>=4.8.0
-opencv-python>=4.8.0
 
 # OCR and AI
 easyocr==1.7.1
