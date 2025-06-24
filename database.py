@@ -118,6 +118,102 @@ class DatabaseManager:
             logger.error(f"Database connection test failed: {e}")
             return False
     
+    def check_duplicates(self, data: Dict) -> Dict:
+        """
+        Check for duplicate contacts based on name, phone, and email.
+        
+        Args:
+            data (dict): Dictionary containing business card fields
+            
+        Returns:
+            dict: Dictionary with duplicate information
+                {
+                    'has_duplicates': bool,
+                    'duplicates': list of duplicate records,
+                    'duplicate_fields': list of fields that match
+                }
+        """
+        try:
+            duplicates = []
+            duplicate_fields = []
+            
+            # Get name, phone, and email from the new data
+            new_name = data.get('name', '').strip().lower()
+            new_phones = [phone.strip().lower() for phone in data.get('phone', []) if phone.strip()]
+            new_emails = [email.strip().lower() for email in data.get('email', []) if email.strip()]
+            
+            # Get all existing contacts
+            existing_contacts = self.get_all_contacts()
+            if existing_contacts is None or len(existing_contacts) == 0:
+                return {
+                    'has_duplicates': False,
+                    'duplicates': [],
+                    'duplicate_fields': []
+                }
+            
+            for _, contact in existing_contacts.iterrows():
+                match_fields = []
+                
+                # Check name match
+                existing_name = str(contact.get('name', '')).strip().lower()
+                if new_name and existing_name and new_name == existing_name:
+                    match_fields.append('name')
+                
+                # Check phone matches
+                existing_phones = []
+                if contact.get('phone'):
+                    existing_phones = [phone.strip().lower() for phone in str(contact['phone']).split(',') if phone.strip()]
+                
+                for new_phone in new_phones:
+                    for existing_phone in existing_phones:
+                        if new_phone and existing_phone and new_phone == existing_phone:
+                            if 'phone' not in match_fields:
+                                match_fields.append('phone')
+                
+                # Check email matches
+                existing_emails = []
+                if contact.get('email'):
+                    existing_emails = [email.strip().lower() for email in str(contact['email']).split(',') if email.strip()]
+                
+                for new_email in new_emails:
+                    for existing_email in existing_emails:
+                        if new_email and existing_email and new_email == existing_email:
+                            if 'email' not in match_fields:
+                                match_fields.append('email')
+                
+                # If any field matches, add to duplicates
+                if match_fields:
+                    duplicates.append({
+                        'id': contact.get('id'),
+                        'name': contact.get('name'),
+                        'designation': contact.get('designation'),
+                        'company': contact.get('company'),
+                        'phone': contact.get('phone'),
+                        'email': contact.get('email'),
+                        'website': contact.get('website'),
+                        'address': contact.get('address'),
+                        'created_at': contact.get('created_at'),
+                        'match_fields': match_fields
+                    })
+                    duplicate_fields.extend(match_fields)
+            
+            # Remove duplicate field entries
+            duplicate_fields = list(set(duplicate_fields))
+            
+            return {
+                'has_duplicates': len(duplicates) > 0,
+                'duplicates': duplicates,
+                'duplicate_fields': duplicate_fields
+            }
+            
+        except Exception as e:
+            logger.error(f"Error checking duplicates: {e}")
+            return {
+                'has_duplicates': False,
+                'duplicates': [],
+                'duplicate_fields': []
+            }
+    
     def store_in_db(self, data: Dict) -> bool:
         """
         Store business card data in the database.
@@ -423,6 +519,86 @@ class DatabaseManager:
                 
         except Exception as e:
             logger.error(f"Error updating contact: {e}")
+            return False
+
+    def merge_contacts(self, contact1_id: int, contact2_id: int) -> bool:
+        """
+        Merge two duplicate contacts by combining their information.
+        
+        Args:
+            contact1_id (int): ID of the first contact (will be kept)
+            contact2_id (int): ID of the second contact (will be deleted)
+            
+        Returns:
+            bool: True if merge successful, False otherwise
+        """
+        try:
+            # Get both contacts
+            contact1 = self.get_contact_by_id(contact1_id)
+            contact2 = self.get_contact_by_id(contact2_id)
+            
+            if not contact1 or not contact2:
+                logger.error("One or both contacts not found")
+                return False
+            
+            # Merge the data intelligently
+            merged_data = {}
+            
+            # Name: prefer non-empty, longer name
+            name1 = contact1.get('name', '').strip()
+            name2 = contact2.get('name', '').strip()
+            merged_data['name'] = name1 if len(name1) >= len(name2) else name2
+            
+            # Company: prefer non-empty, longer company name
+            company1 = contact1.get('company', '').strip()
+            company2 = contact2.get('company', '').strip()
+            merged_data['company'] = company1 if len(company1) >= len(company2) else company2
+            
+            # Designation: prefer non-empty, longer designation
+            designation1 = contact1.get('designation', '').strip()
+            designation2 = contact2.get('designation', '').strip()
+            merged_data['designation'] = designation1 if len(designation1) >= len(designation2) else designation2
+            
+            # Address: prefer non-empty, longer address
+            address1 = contact1.get('address', '').strip()
+            address2 = contact2.get('address', '').strip()
+            merged_data['address'] = address1 if len(address1) >= len(address2) else address2
+            
+            # Phone: combine unique phone numbers
+            phones1 = [phone.strip() for phone in contact1.get('phone', '').split(',') if phone.strip()]
+            phones2 = [phone.strip() for phone in contact2.get('phone', '').split(',') if phone.strip()]
+            all_phones = list(set(phones1 + phones2))  # Remove duplicates
+            merged_data['phone'] = ', '.join(all_phones)
+            
+            # Email: combine unique email addresses
+            emails1 = [email.strip() for email in contact1.get('email', '').split(',') if email.strip()]
+            emails2 = [email.strip() for email in contact2.get('email', '').split(',') if email.strip()]
+            all_emails = list(set(emails1 + emails2))  # Remove duplicates
+            merged_data['email'] = ', '.join(all_emails)
+            
+            # Website: combine unique websites
+            websites1 = [website.strip() for website in contact1.get('website', '').split(',') if website.strip()]
+            websites2 = [website.strip() for website in contact2.get('website', '').split(',') if website.strip()]
+            all_websites = list(set(websites1 + websites2))  # Remove duplicates
+            merged_data['website'] = ', '.join(all_websites)
+            
+            # Update contact1 with merged data
+            success = self.update_contact(contact1_id, merged_data)
+            if not success:
+                logger.error("Failed to update contact1 with merged data")
+                return False
+            
+            # Delete contact2
+            success = self.delete_contact(contact2_id)
+            if not success:
+                logger.error("Failed to delete contact2 after merge")
+                return False
+            
+            logger.info(f"Successfully merged contacts {contact1_id} and {contact2_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error merging contacts: {e}")
             return False
 
 

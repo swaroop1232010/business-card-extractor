@@ -818,7 +818,7 @@ def view_contacts():
         
         # Export functionality
         st.markdown("### 📤 Export Options")
-        export_col1, export_col2, export_col3 = st.columns(3)
+        export_col1, export_col2, export_col3, export_col4 = st.columns(4)
         
         with export_col1:
             if st.button("📄 Export to CSV", type="secondary", use_container_width=True):
@@ -832,6 +832,10 @@ def view_contacts():
             if st.button("🔄 Refresh Data", type="secondary", use_container_width=True):
                 clear_contact_cache()
                 st.experimental_rerun()
+        
+        with export_col4:
+            if st.button("🔍 Check Duplicates", type="secondary", use_container_width=True):
+                check_existing_duplicates(contacts_df)
         
         # Display contacts in a table with actions
         show_contacts_table_with_actions(contacts_df)
@@ -1367,7 +1371,7 @@ def clear_contact_cache():
     get_cached_contacts.clear()
 
 def save_to_database(data):
-    """Save extracted data to database."""
+    """Save extracted data to database with duplicate checking."""
     
     try:
         if not data or 'classified_data' not in data:
@@ -1381,6 +1385,67 @@ def save_to_database(data):
             st.error("❌ At least a name or company is required to save")
             return
         
+        # Check for duplicates before saving
+        duplicate_check = db_manager.check_duplicates(classified_data)
+        
+        if duplicate_check['has_duplicates']:
+            # Show duplicate warning with details
+            st.warning("⚠️ **Potential Duplicate Contact Detected!**")
+            
+            # Display duplicate information
+            with st.expander("🔍 View Duplicate Details", expanded=True):
+                st.markdown("**The following existing contacts match the new data:**")
+                
+                for i, duplicate in enumerate(duplicate_check['duplicates'], 1):
+                    st.markdown(f"**Duplicate {i}:**")
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown(f"**Name:** {duplicate.get('name', 'N/A')}")
+                        st.markdown(f"**Company:** {duplicate.get('company', 'N/A')}")
+                        st.markdown(f"**Designation:** {duplicate.get('designation', 'N/A')}")
+                    
+                    with col2:
+                        st.markdown(f"**Phone:** {duplicate.get('phone', 'N/A')}")
+                        st.markdown(f"**Email:** {duplicate.get('email', 'N/A')}")
+                        st.markdown(f"**Added:** {duplicate.get('created_at', 'N/A')}")
+                    
+                    # Show which fields match
+                    match_fields = duplicate.get('match_fields', [])
+                    if match_fields:
+                        st.markdown(f"**Matching fields:** {', '.join(match_fields)}")
+                    
+                    st.markdown("---")
+                
+                # Show summary of matching fields
+                duplicate_fields = duplicate_check['duplicate_fields']
+                st.markdown(f"**Summary:** Found {len(duplicate_check['duplicates'])} existing contact(s) with matching: {', '.join(duplicate_fields)}")
+            
+            # Ask user if they want to proceed
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col1:
+                if st.button("✅ Save Anyway", key="save_duplicate", help="Save the contact even though duplicates exist"):
+                    proceed_with_save(classified_data)
+            with col2:
+                if st.button("❌ Cancel", key="cancel_duplicate", help="Cancel saving this contact"):
+                    st.info("💡 Contact not saved. You can modify the data and try again.")
+            with col3:
+                if st.button("🔄 Modify Data", key="modify_duplicate", help="Go back and modify the extracted data"):
+                    st.session_state['show_edit_form'] = True
+                    st.rerun()
+        else:
+            # No duplicates found, proceed with save
+            proceed_with_save(classified_data)
+            
+    except Exception as e:
+        error_msg = str(e)
+        show_database_error_message(error_msg)
+        logger.error(f"Error saving to database: {e}")
+
+
+def proceed_with_save(classified_data):
+    """Proceed with saving the contact to database."""
+    try:
         # Save to database
         success = store_in_db(classified_data)
         
@@ -1616,6 +1681,176 @@ def show_database_error_message(error_msg):
         4. Check database logs for more details
         5. Try connecting with a database client first
         """)
+
+
+def check_existing_duplicates(contacts_df):
+    """Check for duplicate contacts in the existing database."""
+    
+    st.markdown("### 🔍 Duplicate Detection Results")
+    
+    try:
+        duplicates_found = []
+        
+        # Check for duplicates based on name, phone, and email
+        for idx, contact in contacts_df.iterrows():
+            contact_id = contact.get('id')
+            name = str(contact.get('name', '')).strip().lower()
+            phones = []
+            if contact.get('phone'):
+                phones = [phone.strip().lower() for phone in str(contact['phone']).split(',') if phone.strip()]
+            emails = []
+            if contact.get('email'):
+                emails = [email.strip().lower() for email in str(contact['email']).split(',') if email.strip()]
+            
+            # Check against other contacts
+            for other_idx, other_contact in contacts_df.iterrows():
+                if idx == other_idx:  # Skip self
+                    continue
+                
+                other_id = other_contact.get('id')
+                other_name = str(other_contact.get('name', '')).strip().lower()
+                other_phones = []
+                if other_contact.get('phone'):
+                    other_phones = [phone.strip().lower() for phone in str(other_contact['phone']).split(',') if phone.strip()]
+                other_emails = []
+                if other_contact.get('email'):
+                    other_emails = [email.strip().lower() for email in str(other_contact['email']).split(',') if email.strip()]
+                
+                match_fields = []
+                
+                # Check name match
+                if name and other_name and name == other_name:
+                    match_fields.append('name')
+                
+                # Check phone matches
+                for phone in phones:
+                    for other_phone in other_phones:
+                        if phone and other_phone and phone == other_phone:
+                            if 'phone' not in match_fields:
+                                match_fields.append('phone')
+                
+                # Check email matches
+                for email in emails:
+                    for other_email in other_emails:
+                        if email and other_email and email == other_email:
+                            if 'email' not in match_fields:
+                                match_fields.append('email')
+                
+                # If any field matches, add to duplicates
+                if match_fields:
+                    duplicate_pair = {
+                        'contact1': {
+                            'id': contact_id,
+                            'name': contact.get('name'),
+                            'company': contact.get('company'),
+                            'phone': contact.get('phone'),
+                            'email': contact.get('email'),
+                            'created_at': contact.get('created_at')
+                        },
+                        'contact2': {
+                            'id': other_id,
+                            'name': other_contact.get('name'),
+                            'company': other_contact.get('company'),
+                            'phone': other_contact.get('phone'),
+                            'email': other_contact.get('email'),
+                            'created_at': other_contact.get('created_at')
+                        },
+                        'match_fields': match_fields
+                    }
+                    
+                    # Avoid duplicate pairs (A-B and B-A)
+                    pair_key = tuple(sorted([contact_id, other_id]))
+                    if pair_key not in [tuple(sorted([d['contact1']['id'], d['contact2']['id']])) for d in duplicates_found]:
+                        duplicates_found.append(duplicate_pair)
+        
+        if duplicates_found:
+            st.warning(f"⚠️ **Found {len(duplicates_found)} potential duplicate pairs!**")
+            
+            # Group duplicates by matching fields
+            duplicate_groups = {}
+            for duplicate in duplicates_found:
+                match_key = tuple(sorted(duplicate['match_fields']))
+                if match_key not in duplicate_groups:
+                    duplicate_groups[match_key] = []
+                duplicate_groups[match_key].append(duplicate)
+            
+            # Display duplicates grouped by matching fields
+            for i, (match_fields, group) in enumerate(duplicate_groups.items(), 1):
+                st.markdown(f"#### 🔍 Group {i}: Matching {', '.join(match_fields)}")
+                
+                for j, duplicate in enumerate(group, 1):
+                    with st.expander(f"Duplicate Pair {j}", expanded=True):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown("**Contact 1:**")
+                            st.markdown(f"**Name:** {duplicate['contact1']['name']}")
+                            st.markdown(f"**Company:** {duplicate['contact1']['company']}")
+                            st.markdown(f"**Phone:** {duplicate['contact1']['phone']}")
+                            st.markdown(f"**Email:** {duplicate['contact1']['email']}")
+                            st.markdown(f"**Added:** {duplicate['contact1']['created_at']}")
+                        
+                        with col2:
+                            st.markdown("**Contact 2:**")
+                            st.markdown(f"**Name:** {duplicate['contact2']['name']}")
+                            st.markdown(f"**Company:** {duplicate['contact2']['company']}")
+                            st.markdown(f"**Phone:** {duplicate['contact2']['phone']}")
+                            st.markdown(f"**Email:** {duplicate['contact2']['email']}")
+                            st.markdown(f"**Added:** {duplicate['contact2']['created_at']}")
+                        
+                        st.markdown(f"**Matching fields:** {', '.join(duplicate['match_fields'])}")
+                        
+                        # Action buttons for each duplicate pair
+                        action_col1, action_col2, action_col3 = st.columns(3)
+                        with action_col1:
+                            if st.button(f"🗑️ Delete Contact 1", key=f"del1_{i}_{j}"):
+                                if delete_contact(duplicate['contact1']['id']):
+                                    st.success("✅ Contact 1 deleted successfully!")
+                                    clear_contact_cache()
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Failed to delete contact 1")
+                        
+                        with action_col2:
+                            if st.button(f"🗑️ Delete Contact 2", key=f"del2_{i}_{j}"):
+                                if delete_contact(duplicate['contact2']['id']):
+                                    st.success("✅ Contact 2 deleted successfully!")
+                                    clear_contact_cache()
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Failed to delete contact 2")
+                        
+                        with action_col3:
+                            if st.button(f"✏️ Merge Contacts", key=f"merge_{i}_{j}"):
+                                if db_manager.merge_contacts(duplicate['contact1']['id'], duplicate['contact2']['id']):
+                                    st.success("✅ Contacts merged successfully!")
+                                    clear_contact_cache()
+                                    st.rerun()
+                
+                st.markdown("---")
+            
+            # Summary statistics
+            st.markdown("### 📊 Duplicate Summary")
+            total_duplicates = len(duplicates_found)
+            unique_contacts_involved = set()
+            for duplicate in duplicates_found:
+                unique_contacts_involved.add(duplicate['contact1']['id'])
+                unique_contacts_involved.add(duplicate['contact2']['id'])
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Duplicate Pairs", total_duplicates)
+            with col2:
+                st.metric("Unique Contacts Involved", len(unique_contacts_involved))
+            with col3:
+                st.metric("Total Contacts", len(contacts_df))
+            
+        else:
+            st.success("✅ **No duplicates found!** Your contact database is clean.")
+            
+    except Exception as e:
+        st.error(f"❌ Error checking for duplicates: {str(e)}")
+        logger.error(f"Error checking duplicates: {e}")
 
 
 if __name__ == "__main__":
