@@ -1,6 +1,6 @@
 """
 Database Module for Business Card Extraction
-Supports PostgreSQL (Supabase) using SQLAlchemy.
+Supports SQLite only (for Streamlit Cloud compatibility).
 """
 
 from sqlalchemy import create_engine, text, MetaData, Table, Column, Integer, String, TIMESTAMP
@@ -20,42 +20,26 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
-    """Database manager for business card extraction application."""
+    """Database manager for business card extraction application (SQLite only)."""
     
-    def __init__(self, host='localhost', user='postgres', password='postgres', database='business_cards', port=5432):
+    def __init__(self, db_path='business_cards.db'):
         """
-        Initialize database connection.
-        
+        Initialize SQLite database connection.
         Args:
-            host (str): PostgreSQL host address
-            user (str): PostgreSQL username
-            password (str): PostgreSQL password
-            database (str): Database name
-            port (int): PostgreSQL port
+            db_path (str): Path to SQLite database file
         """
-        self.host = host
-        self.user = user
-        self.password = password
-        self.database = database
-        self.port = port
+        self.db_path = db_path
         self.engine = None
         self.connect()
     
     def get_connection_string(self):
-        """Get PostgreSQL connection string."""
-        return f"postgresql+psycopg2://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
+        return f"sqlite:///{self.db_path}"
     
     def connect(self):
-        """
-        Establish database connection.
-        
-        Returns:
-            bool: True if connection successful, False otherwise
-        """
         try:
             conn_str = self.get_connection_string()
             self.engine = create_engine(conn_str, echo=False, future=True)
-            logger.info(f"Connected to postgresql database.")
+            logger.info(f"Connected to SQLite database at {self.db_path}.")
             self.ensure_contacts_table()
             return True
         except Exception as e:
@@ -84,18 +68,11 @@ class DatabaseManager:
             logger.error(f"Error ensuring contacts table: {e}")
     
     def disconnect(self):
-        """Close database connection."""
         if self.engine:
             self.engine.dispose()
             logger.info("Database connection closed")
     
     def test_connection(self):
-        """
-        Test database connection.
-        
-        Returns:
-            bool: True if connection is working, False otherwise
-        """
         try:
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
@@ -588,32 +565,19 @@ class DatabaseManager:
             return False
 
 
-# Global database manager instance - Initialize with Supabase defaults
-db_manager = DatabaseManager(
-    host="db.ncjbnmsvthkttatdwdaz.supabase.co",
-    user="postgres", 
-    password="fmv_v7UjDN+&Td&",
-    database="postgres",
-    port=5432
-)
+# Global database manager instance
+# Always use SQLite file in project root
+db_manager = DatabaseManager(db_path='business_cards.db')
 
-
-def set_db_config(host, user, password, database, port=5432):
-    """Set database configuration and reinitialize the global database manager. Only supports postgresql."""
+def set_db_config(db_path='business_cards.db'):
+    """Set database configuration and reinitialize the global database manager (SQLite only)."""
     global db_manager
     try:
-        db_manager = DatabaseManager(
-            host=host,
-            user=user,
-            password=password,
-            database=database,
-            port=port
-        )
-        logger.info(f"Database configuration updated: postgresql")
+        db_manager = DatabaseManager(db_path=db_path)
+        logger.info(f"Database configuration updated: sqlite ({db_path})")
         return True
     except Exception as e:
         logger.error(f"Error setting database configuration: {e}")
-        # Don't fall back to localhost defaults - keep the current configuration
         return False
 
 

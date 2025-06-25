@@ -1,5 +1,5 @@
 """
-Configuration Settings for Business Card Extractor
+Configuration Settings for Business Card Extractor (SQLite only)
 =================================================
 
 This module contains all configuration settings for the application.
@@ -8,14 +8,8 @@ This module contains all configuration settings for the application.
 import os
 from typing import Dict, Any
 
-# Supabase Configuration - Use environment variables with defaults for deployment
-SUPABASE_DEFAULTS = {
-    "host": os.environ.get("SUPABASE_HOST", "db.ncjbnmsvthkttatdwdaz.supabase.co"),
-    "port": os.environ.get("SUPABASE_PORT", "5432"),
-    "user": os.environ.get("SUPABASE_USER", "postgres"),
-    "password": os.environ.get("SUPABASE_PASSWORD", "fmv_v7UjDN+&Td&"),
-    "database": os.environ.get("SUPABASE_DB", "postgres")
-}
+# SQLite Configuration
+DB_PATH = os.environ.get("SQLITE_DB_PATH", "business_cards.db")
 
 # Application Settings
 APP_CONFIG = {
@@ -50,44 +44,13 @@ OCR_CONFIG = {
     "language": "en"
 }
 
-def get_supabase_db_config() -> tuple:
-    """Get database configuration with Supabase defaults for deployment."""
-    return (
-        SUPABASE_DEFAULTS["host"],
-        SUPABASE_DEFAULTS["user"],
-        SUPABASE_DEFAULTS["password"],
-        SUPABASE_DEFAULTS["database"],
-        int(SUPABASE_DEFAULTS["port"])
-    )
-
-def is_production() -> bool:
-    """Check if running in production environment."""
-    return os.environ.get("STREAMLIT_SERVER_ENV") == "production"
-
-def is_supabase_accessible() -> bool:
-    """Check if Supabase is accessible from the current environment."""
-    try:
-        import socket
-        host = SUPABASE_DEFAULTS["host"]
-        port = int(SUPABASE_DEFAULTS["port"])
-        
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(5)
-        result = sock.connect_ex((host, port))
-        sock.close()
-        
-        return result == 0
-    except:
-        return False
+def get_sqlite_db_config() -> str:
+    """Get SQLite database file path."""
+    return DB_PATH
 
 def get_deployment_info() -> Dict[str, Any]:
     """Get deployment information."""
-    supabase_accessible = is_supabase_accessible()
-    
     return {
-        "environment": "production" if is_production() else "development",
-        "database": "Supabase" if supabase_accessible else "Local SQLite (fallback)",
-        "supabase_host": SUPABASE_DEFAULTS["host"],
-        "supabase_user": SUPABASE_DEFAULTS["user"],
-        "supabase_accessible": supabase_accessible
+        "environment": "production" if os.environ.get("STREAMLIT_SERVER_ENV") == "production" else "development",
+        "database": f"SQLite ({DB_PATH})"
     } 
