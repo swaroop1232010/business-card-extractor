@@ -23,7 +23,7 @@ from core.database import (
 from utils.styles import get_css_styles
 from config.config import (
     APP_CONFIG, UPLOAD_CONFIG, DB_CONFIG, OCR_CONFIG,
-    get_supabase_db_config, is_production, get_deployment_info
+    get_sqlite_db_config, get_deployment_info
 )
 
 # Configure logging
@@ -40,7 +40,7 @@ st.set_page_config(
 )
 
 # Set the DB config at app startup - Use Supabase defaults when deployed
-set_db_config(*get_supabase_db_config())
+set_db_config(get_sqlite_db_config())
 
 # Initialize session state for better performance
 def init_session_state():
