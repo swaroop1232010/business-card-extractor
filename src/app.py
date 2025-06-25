@@ -11,14 +11,19 @@ from pathlib import Path
 import logging
 import pandas as pd
 
-# Import custom modules
-from preprocess import preprocess_image
-from ocr import extract_text
-from classify import classify_text
-from database import (
+# Import custom modules from src structure
+from core.preprocess import preprocess_image
+from core.ocr import extract_text
+from core.classify import classify_text
+from core.database import (
     store_in_db, get_all_contacts, db_manager, set_db_config, 
     export_to_csv, export_to_excel, import_from_csv, get_export_template,
     update_contact
+)
+from utils.styles import get_css_styles
+from config.config import (
+    APP_CONFIG, UPLOAD_CONFIG, DB_CONFIG, OCR_CONFIG,
+    get_supabase_db_config, is_production, get_deployment_info
 )
 
 # Configure logging
@@ -27,395 +32,14 @@ logger = logging.getLogger(__name__)
 
 # Page configuration with production optimizations
 st.set_page_config(
-    page_title="Business Card Extractor Pro",
-    page_icon="📇",
-    layout="wide",
-    initial_sidebar_state="expanded",
-    menu_items={
-        'Get Help': 'https://github.com/your-repo/business-card-extractor',
-        'Report a bug': 'https://github.com/your-repo/business-card-extractor/issues',
-        'About': 'Business Card Extractor Pro - AI-powered OCR for business cards'
-    }
+    page_title=APP_CONFIG["page_title"],
+    page_icon=APP_CONFIG["page_icon"],
+    layout=APP_CONFIG["layout"],
+    initial_sidebar_state=APP_CONFIG["initial_sidebar_state"],
+    menu_items=APP_CONFIG["menu_items"]
 )
 
-# Enhanced CSS for modern, user-friendly design with mobile responsiveness
-st.markdown("""
-<style>
-    /* Main styling */
-    .main-header {
-        font-size: clamp(2rem, 5vw, 3rem);
-        color: #1f77b4;
-        text-align: center;
-        margin-bottom: 1rem;
-        font-weight: bold;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .sub-header {
-        font-size: clamp(1rem, 3vw, 1.5rem);
-        color: #2c3e50;
-        text-align: center;
-        margin-bottom: 2rem;
-        font-weight: 500;
-    }
-    
-    /* Card styling */
-    .card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        margin-bottom: 1rem;
-        border-left: 4px solid #1f77b4;
-    }
-    
-    .success-card {
-        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-        border-left: 4px solid #28a745;
-        color: #155724;
-    }
-    
-    .error-card {
-        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-        border-left: 4px solid #dc3545;
-        color: #721c24;
-    }
-    
-    .info-card {
-        background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
-        border-left: 4px solid #17a2b8;
-        color: #0c5460;
-    }
-    
-    /* Button styling */
-    .stButton > button {
-        border-radius: 20px;
-        font-weight: 600;
-        padding: 0.5rem 2rem;
-        border: none;
-        transition: all 0.3s ease;
-        min-height: 44px; /* Mobile-friendly touch target */
-    }
-    
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-    
-    /* Progress indicators */
-    .progress-step {
-        display: inline-block;
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        background: #e9ecef;
-        text-align: center;
-        line-height: 30px;
-        margin-right: 10px;
-        font-weight: bold;
-    }
-    
-    .progress-step.active {
-        background: #1f77b4;
-        color: white;
-    }
-    
-    .progress-step.completed {
-        background: #28a745;
-        color: white;
-    }
-    
-    /* Data display styling */
-    .data-field {
-        background: #f8f9fa;
-        padding: 0.75rem;
-        border-radius: 5px;
-        margin: 0.25rem 0;
-        border-left: 3px solid #1f77b4;
-    }
-    
-    .data-label {
-        font-weight: 600;
-        color: #495057;
-        margin-bottom: 0.25rem;
-    }
-    
-    .data-value {
-        color: #212529;
-        font-size: 1.1rem;
-    }
-    
-    /* Section headers */
-    .section-header {
-        font-size: clamp(1.5rem, 4vw, 1.8rem);
-        color: #2c3e50;
-        margin: 2rem 0 1rem 0;
-        padding-bottom: 0.5rem;
-        border-bottom: 3px solid #1f77b4;
-        font-weight: 600;
-    }
-    
-    /* Feature highlights */
-    .feature-highlight {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 1rem 0;
-        text-align: center;
-        font-size: clamp(0.9rem, 2.5vw, 1rem);
-    }
-    
-    /* Mobile responsiveness */
-    @media (max-width: 768px) {
-        .main-header {
-            font-size: 2rem;
-        }
-        
-        .sub-header {
-            font-size: 1rem;
-        }
-        
-        .section-header {
-            font-size: 1.5rem;
-        }
-        
-        .stButton > button {
-            padding: 0.75rem 1.5rem;
-            font-size: 0.9rem;
-        }
-        
-        .feature-highlight {
-            padding: 0.75rem;
-            font-size: 0.9rem;
-        }
-        
-        /* Improve table responsiveness */
-        .stDataFrame {
-            font-size: 0.8rem;
-        }
-        
-        /* Better spacing for mobile */
-        .stMarkdown {
-            margin-bottom: 1rem;
-        }
-        
-        /* Hide unnecessary elements on mobile */
-        .mobile-hide {
-            display: none !important;
-        }
-        
-        /* Compact layout for mobile */
-        .mobile-compact {
-            padding: 0.5rem !important;
-            margin: 0.25rem 0 !important;
-        }
-        
-        /* Optimize sidebar for mobile */
-        .css-1d391kg {
-            padding: 0.5rem !important;
-        }
-        
-        /* Better mobile navigation */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 0.5rem !important;
-        }
-        
-        .stTabs [data-baseweb="tab"] {
-            padding: 0.5rem 1rem !important;
-            font-size: 0.9rem !important;
-        }
-    }
-    
-    /* Camera input styling */
-    .stCameraInput {
-        border-radius: 10px;
-        overflow: hidden;
-    }
-    
-    /* File uploader styling */
-    .stFileUploader {
-        border: 2px dashed #1f77b4;
-        border-radius: 10px;
-        padding: 1rem;
-        text-align: center;
-    }
-    
-    /* Status indicators */
-    .stStatus {
-        border-radius: 8px;
-        margin: 0.5rem 0;
-    }
-    
-    /* Mobile-specific optimizations */
-    @media (max-width: 480px) {
-        /* Even more compact for small screens */
-        .main-header {
-            font-size: 1.8rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        .sub-header {
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
-        }
-        
-        /* Reduce padding and margins */
-        .stMarkdown {
-            margin-bottom: 0.5rem;
-        }
-        
-        /* Compact buttons */
-        .stButton > button {
-            padding: 0.5rem 1rem;
-            font-size: 0.8rem;
-            min-height: 40px;
-        }
-        
-        /* Hide feature highlights on very small screens */
-        .feature-highlight {
-            display: none;
-        }
-    }
-    
-    /* Contact action buttons styling */
-    .contact-action-btn {
-        margin: 0.25rem;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        min-height: 36px;
-    }
-    
-    /* Form styling */
-    .stForm {
-        background: #f8f9fa;
-        padding: 1.5rem;
-        border-radius: 10px;
-        border: 1px solid #dee2e6;
-        margin: 1rem 0;
-    }
-    
-    /* Expandable sections */
-    .streamlit-expanderHeader {
-        background: #e9ecef;
-        border-radius: 8px;
-        font-weight: 600;
-    }
-    
-    /* Contact details display */
-    .contact-details {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-radius: 8px;
-        border-left: 4px solid #1f77b4;
-        margin: 0.5rem 0;
-    }
-    
-    /* Export buttons */
-    .export-btn {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 0.5rem 1rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-    
-    .export-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-    
-    /* Popup dialog styling */
-    .popup-dialog {
-        background: white;
-        border: 2px solid #1f77b4;
-        border-radius: 10px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    
-    /* Action button styling */
-    .action-btn {
-        margin: 0.25rem;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        min-height: 32px;
-        transition: all 0.2s ease;
-    }
-    
-    .action-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    /* Contact row styling */
-    .contact-row {
-        background: #f8f9fa;
-        padding: 0.75rem;
-        border-radius: 8px;
-        margin: 0.5rem 0;
-        border-left: 3px solid #1f77b4;
-    }
-    
-    /* Performance optimizations */
-    .stButton > button {
-        transition: all 0.15s ease; /* Faster transitions */
-    }
-    
-    .stDataFrame {
-        font-size: 0.9rem; /* Slightly smaller for better performance */
-    }
-    
-    /* Compact action buttons */
-    .compact-action-btn {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.8rem;
-        min-height: 28px;
-        border-radius: 4px;
-    }
-    
-    /* Optimized loading states */
-    .loading-spinner {
-        display: inline-block;
-        width: 20px;
-        height: 20px;
-        border: 2px solid #f3f3f3;
-        border-top: 2px solid #1f77b4;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-    
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# --- Place these at the top, after imports ---
-SUPABASE_DEFAULTS = {
-    "host": os.environ.get("SUPABASE_HOST", "db.ncjbnmsvthkttatdwdaz.supabase.co"),
-    "port": os.environ.get("SUPABASE_PORT", "5432"),
-    "user": os.environ.get("SUPABASE_USER", "postgres"),
-    "password": os.environ.get("SUPABASE_PASSWORD", "fmv_v7UjDN+&Td&"),
-    "database": os.environ.get("SUPABASE_DB", "postgres")
-}
-
-def get_supabase_db_config():
-    return (
-        "postgresql",
-        SUPABASE_DEFAULTS["host"],
-        SUPABASE_DEFAULTS["user"],
-        SUPABASE_DEFAULTS["password"],
-        SUPABASE_DEFAULTS["database"],
-        SUPABASE_DEFAULTS["port"],
-        None
-    )
-
-# Set the DB config at app startup
+# Set the DB config at app startup - Use Supabase defaults when deployed
 set_db_config(*get_supabase_db_config())
 
 # Initialize session state for better performance
@@ -458,12 +82,11 @@ def cleanup_temp_files():
 
 def main():
     """Main application function."""
-    
-    # Initialize session state
-    init_session_state()
-    
     # Clean up temporary files on startup
     cleanup_temp_files()
+    
+    # Apply CSS styles
+    st.markdown(get_css_styles(), unsafe_allow_html=True)
     
     # Header with enhanced styling
     st.markdown('<h1 class="main-header">📇 Business Card Extractor Pro</h1>', unsafe_allow_html=True)
@@ -499,32 +122,42 @@ def extract_business_cards():
     
     st.markdown('<h2 class="section-header">📤 Extract Business Card Information</h2>', unsafe_allow_html=True)
     
-    # Mobile-friendly progress display
+    # Progress steps (always horizontal row)
     if st.checkbox("📱 Show Progress Steps", value=True, help="Show/hide the progress steps"):
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.markdown('<div class="progress-step active">1</div>', unsafe_allow_html=True)
-            st.markdown("**Upload**")
-        with col2:
-            st.markdown('<div class="progress-step">2</div>', unsafe_allow_html=True)
-            st.markdown("**Process**")
-        with col3:
-            st.markdown('<div class="progress-step">3</div>', unsafe_allow_html=True)
-            st.markdown("**Extract**")
-        with col4:
-            st.markdown('<div class="progress-step">4</div>', unsafe_allow_html=True)
-            st.markdown("**Save**")
+        st.markdown(
+            '''
+            <div class="progress-steps-row">
+                <div>
+                    <div class="progress-step active">1</div>
+                    <div style="text-align:center;font-size:0.9em;">Upload</div>
+                </div>
+                <div>
+                    <div class="progress-step">2</div>
+                    <div style="text-align:center;font-size:0.9em;">Process</div>
+                </div>
+                <div>
+                    <div class="progress-step">3</div>
+                    <div style="text-align:center;font-size:0.9em;">Extract</div>
+                </div>
+                <div>
+                    <div class="progress-step">4</div>
+                    <div style="text-align:center;font-size:0.9em;">Save</div>
+                </div>
+            </div>
+            ''',
+            unsafe_allow_html=True
+        )
     
     # --- Professional Upload Section ---
     st.markdown('''
-    <div class="card" style="margin-bottom:2rem;">
+    <div class="card" style="margin-bottom:2rem;width:100%;">
         <h3 style="margin-bottom:0.5rem;">📤 <span style="vertical-align:middle;">Upload Business Card</span></h3>
-        <div style="display:flex;flex-wrap:wrap;gap:2rem;align-items:center;">
-            <div style="flex:1;min-width:220px;">
+        <div style="display:flex;flex-wrap:wrap;gap:2rem;align-items:center;flex-direction:column;">
+            <div style="flex:1;min-width:220px;width:100%;">
                 <b>📷 Take Photo</b><br>
                 <span style="font-size:0.95em;color:#555;">Use your device camera to capture a business card.</span>
             </div>
-            <div style="flex:1;min-width:220px;">
+            <div style="flex:1;min-width:220px;width:100%;">
                 <b>📁 Upload Image(s)</b><br>
                 <span style="font-size:0.95em;color:#555;">Select one or more images from your device.</span>
             </div>
@@ -849,28 +482,21 @@ def view_contacts():
 def show_contacts_table_with_actions(df):
     """Display contacts in a modern, interactive table with enhanced features."""
     st.markdown("### 📊 Contact Data Table")
-    
-    # Add table controls
+    # Always use columns for controls, CSS will stack on mobile
     col1, col2, col3 = st.columns([2, 2, 1])
-    
     with col1:
-        # Sort options
         sort_by = st.selectbox(
             "📊 Sort by",
             ["Created Date (Newest)", "Created Date (Oldest)", "Name (A-Z)", "Name (Z-A)", "Company (A-Z)", "Company (Z-A)"],
             help="Sort the contacts table"
         )
-    
     with col2:
-        # Name filter
         name_filter = st.text_input(
             "🔍 Filter by name",
             placeholder="Enter name to filter...",
             help="Filter contacts by name (case-insensitive)"
         )
-    
     with col3:
-        # Items per page
         items_per_page = st.selectbox(
             "📄 Items per page",
             [10, 25, 50, 100],
