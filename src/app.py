@@ -88,6 +88,24 @@ def main():
     # Apply CSS styles
     st.markdown(get_css_styles(), unsafe_allow_html=True)
     
+    # Add responsive CSS for mobile
+    st.markdown('''
+    <style>
+    @media (max-width: 600px) {
+      .mobile-row { display: flex; flex-direction: row !important; justify-content: space-between; gap: 0.5rem; }
+      .mobile-row > div { flex: 1 1 0; min-width: 0; text-align: center; }
+      .contact-actions-row { display: flex; flex-direction: row !important; justify-content: space-between; gap: 0.5rem; margin-bottom: 1rem; }
+      .contact-actions-row button, .contact-actions-row .stButton { min-width: 0; font-size: 1.1em; padding: 0.5em 0.2em; }
+      .stMetric { font-size: 1.1em !important; }
+      .stSelectbox, .stTextInput, .stTextArea { font-size: 1em !important; }
+    }
+    @media (min-width: 601px) {
+      .mobile-row { display: flex; flex-direction: column; }
+      .contact-actions-row { display: flex; flex-direction: column; }
+    }
+    </style>
+    ''', unsafe_allow_html=True)
+    
     # Header with enhanced styling
     st.markdown('<h1 class="main-header">📇 Business Card Extractor Pro</h1>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">Extract, Store, and Manage Business Card Information with AI-Powered OCR</p>', unsafe_allow_html=True)
@@ -419,26 +437,19 @@ def get_cached_contacts():
 
 def view_contacts():
     """Tab for viewing, editing, and managing contacts with optimized performance."""
-    
     st.markdown('<h2 class="section-header">📋 Contact Management</h2>', unsafe_allow_html=True)
-    
-    # Show all contacts
     st.markdown("### 📊 All Contacts")
-    
     try:
-        # Get all contacts with optimized caching
         with st.spinner("📊 Loading contacts..."):
             contacts_df = get_cached_contacts()
-        
         if contacts_df is None:
             st.error("❌ Failed to retrieve contacts from database")
             return
-        
         if len(contacts_df) == 0:
             st.info("📭 No contacts found in database")
             return
-        
-        # Display summary statistics
+        # Responsive stats row
+        st.markdown('<div class="mobile-row">', unsafe_allow_html=True)
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("Total Contacts", len(contacts_df))
@@ -448,7 +459,7 @@ def view_contacts():
             st.metric("With Email", len(contacts_df[contacts_df['email'].notna() & (contacts_df['email'] != '')]))
         with col4:
             st.metric("With Phone", len(contacts_df[contacts_df['phone'].notna() & (contacts_df['phone'] != '')]))
-        
+        st.markdown('</div>', unsafe_allow_html=True)
         # Export functionality
         st.markdown("### 📤 Export Options")
         export_col1, export_col2, export_col3, export_col4 = st.columns(4)
@@ -641,26 +652,23 @@ def show_contacts_table_with_actions(df):
             selected_contact = display_df[display_df['id'] == selected_id].iloc[0]
             
             # Action buttons
+            st.markdown('<div class="contact-actions-row">', unsafe_allow_html=True)
             col1, col2, col3, col4 = st.columns(4)
-            
             with col1:
                 if st.button("👁️ View Details", key=f"view_{selected_id}", use_container_width=True):
                     st.session_state['popup_action'] = 'view'
                     st.session_state['popup_contact_id'] = selected_id
                     st.rerun()
-            
             with col2:
                 if st.button("✏️ Edit Contact", key=f"edit_{selected_id}", use_container_width=True):
                     st.session_state['popup_action'] = 'edit'
                     st.session_state['popup_contact_id'] = selected_id
                     st.rerun()
-            
             with col3:
                 if st.button("🗑️ Delete Contact", key=f"delete_{selected_id}", use_container_width=True):
                     st.session_state['popup_action'] = 'delete'
                     st.session_state['popup_contact_id'] = selected_id
                     st.rerun()
-            
             with col4:
                 if st.button("📋 Copy Details", key=f"copy_{selected_id}", use_container_width=True):
                     # Create a formatted string for copying
@@ -676,6 +684,7 @@ Address: {selected_contact.get('address', 'N/A')}
                     
                     st.code(contact_text, language=None)
                     st.success("✅ Contact details copied to clipboard (select and copy the text above)")
+            st.markdown('</div>', unsafe_allow_html=True)
         
         # Handle popup dialogs
         if st.session_state.get('popup_action') and st.session_state.get('popup_contact_id'):
