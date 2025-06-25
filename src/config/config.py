@@ -64,11 +64,30 @@ def is_production() -> bool:
     """Check if running in production environment."""
     return os.environ.get("STREAMLIT_SERVER_ENV") == "production"
 
+def is_supabase_accessible() -> bool:
+    """Check if Supabase is accessible from the current environment."""
+    try:
+        import socket
+        host = SUPABASE_DEFAULTS["host"]
+        port = int(SUPABASE_DEFAULTS["port"])
+        
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5)
+        result = sock.connect_ex((host, port))
+        sock.close()
+        
+        return result == 0
+    except:
+        return False
+
 def get_deployment_info() -> Dict[str, Any]:
     """Get deployment information."""
+    supabase_accessible = is_supabase_accessible()
+    
     return {
         "environment": "production" if is_production() else "development",
-        "database": "Supabase",
+        "database": "Supabase" if supabase_accessible else "Local SQLite (fallback)",
         "supabase_host": SUPABASE_DEFAULTS["host"],
-        "supabase_user": SUPABASE_DEFAULTS["user"]
+        "supabase_user": SUPABASE_DEFAULTS["user"],
+        "supabase_accessible": supabase_accessible
     } 

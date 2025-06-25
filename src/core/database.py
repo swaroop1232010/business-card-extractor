@@ -588,8 +588,14 @@ class DatabaseManager:
             return False
 
 
-# Global database manager instance
-db_manager = DatabaseManager()
+# Global database manager instance - Initialize with Supabase defaults
+db_manager = DatabaseManager(
+    host="db.ncjbnmsvthkttatdwdaz.supabase.co",
+    user="postgres", 
+    password="fmv_v7UjDN+&Td&",
+    database="postgres",
+    port=5432
+)
 
 
 def set_db_config(host, user, password, database, port=5432):
@@ -607,7 +613,7 @@ def set_db_config(host, user, password, database, port=5432):
         return True
     except Exception as e:
         logger.error(f"Error setting database configuration: {e}")
-        db_manager = DatabaseManager()
+        # Don't fall back to localhost defaults - keep the current configuration
         return False
 
 
