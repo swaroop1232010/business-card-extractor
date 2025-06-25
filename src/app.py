@@ -198,7 +198,7 @@ def extract_business_cards():
             st.markdown(f"#### {source} - Card {idx+1}")
             col1, col2 = st.columns([1, 2])
             with col1:
-                st.image(file, caption=f"{source} - Card {idx+1}", use_column_width=True)
+                st.image(file, caption=f"{source} - Card {idx+1}", use_container_width=True)
             with col2:
                 st.markdown(f"**Image Preview:**\n- ✅ File uploaded successfully\n- 📏 Size: {file.size/1024:.1f} KB\n- 📄 Format: {file.type}")
 
