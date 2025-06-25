@@ -141,6 +141,53 @@ libpng-dev
 2. **Test locally** with `deployment_test.py`
 3. **Check compatibility** between packages
 
+### 6. Python 3.13 Compatibility Issues
+**Error**: `No solution found when resolving dependencies`, `torch==2.1.2 has no wheels with a matching Python ABI tag`
+
+**Root Cause**: Some packages (especially PyTorch) don't have pre-compiled wheels for Python 3.13
+
+**Solutions**:
+
+#### Option 1: Use Flexible Version Ranges
+Update `requirements.txt` to use `>=` instead of `==`:
+```
+torch>=2.2.0
+torchvision>=0.17.0
+```
+
+#### Option 2: Use Minimal Requirements
+Create a minimal `requirements.txt` with only essential packages:
+```
+streamlit>=1.31.0
+pandas>=2.2.0
+numpy>=1.26.0
+Pillow>=10.2.0
+opencv-python-headless>=4.8.0
+easyocr>=1.7.0
+torch>=2.2.0
+torchvision>=0.17.0
+sqlalchemy>=2.0.30
+```
+
+#### Option 3: Downgrade Python Version
+Update `runtime.txt` to use Python 3.11:
+```
+python-3.11.9
+```
+
+#### Option 4: Use CPU-only PyTorch
+For deployment, use CPU-only PyTorch which has better compatibility:
+```
+torch>=2.2.0+cpu
+torchvision>=0.17.0+cpu
+```
+
+**Recommended Approach**:
+1. **Start with minimal requirements** (`requirements_minimal.txt`)
+2. **Use flexible version ranges** (`>=` instead of `==`)
+3. **Test locally** with Python 3.13 before deploying
+4. **Monitor deployment logs** for specific package conflicts
+
 ## 🔧 Pre-Deployment Checklist
 
 ### 1. Run Local Tests

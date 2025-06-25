@@ -1,0 +1,15 @@
+# Minimal requirements for Python 3.13 compatibility
+streamlit>=1.31.0
+pandas>=2.2.0
+numpy>=1.26.0
+Pillow>=10.2.0
+opencv-python-headless>=4.8.0
+easyocr>=1.7.0
+torch>=2.2.0
+torchvision>=0.17.0
+sqlalchemy>=2.0.30
+psycopg2-binary>=2.9.9
+mysql-connector-python>=8.3.0
+scipy>=1.11.0
+scikit-image>=0.22.0
+openpyxl>=3.1.0 

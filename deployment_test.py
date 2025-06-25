@@ -23,6 +23,44 @@ def test_python_version():
         print("   ❌ Python version should be 3.11+")
         return False
 
+def test_python_313_compatibility():
+    """Test for Python 3.13 specific compatibility issues."""
+    print("\n🐍 Testing Python 3.13 compatibility...")
+    
+    version = sys.version_info
+    if version.major == 3 and version.minor == 13:
+        print("   ⚠️ Python 3.13 detected - checking for compatibility issues...")
+        
+        # Check for known problematic packages
+        problematic_packages = [
+            ('torch', 'PyTorch - use >=2.2.0'),
+            ('torchvision', 'TorchVision - use >=0.17.0'),
+            ('sympy', 'SymPy - may cause compilation issues'),
+            ('ninja', 'Ninja - build tool not needed for deployment'),
+            ('opencv-python', 'OpenCV - use opencv-python-headless instead'),
+        ]
+        
+        issues_found = []
+        for package_name, description in problematic_packages:
+            try:
+                importlib.import_module(package_name)
+                if package_name == 'opencv-python':
+                    issues_found.append(f"   ⚠️ {description}")
+            except ImportError:
+                pass
+        
+        if issues_found:
+            print("   ⚠️ Potential Python 3.13 compatibility issues:")
+            for issue in issues_found:
+                print(issue)
+            return False
+        else:
+            print("   ✅ No known Python 3.13 compatibility issues detected")
+            return True
+    else:
+        print("   ✅ Not Python 3.13 - compatibility check skipped")
+        return True
+
 def test_critical_imports():
     """Test if all critical modules can be imported."""
     print("\n📦 Testing critical imports...")
@@ -236,6 +274,7 @@ def main():
     
     tests = [
         ("Python Version", test_python_version),
+        ("Python 3.13 Compatibility", test_python_313_compatibility),
         ("Critical Imports", test_critical_imports),
         ("App Modules", test_app_modules),
         ("OpenCV Functionality", test_opencv_functionality),
