@@ -22,21 +22,21 @@ logger = logging.getLogger(__name__)
 class DatabaseManager:
     """Database manager for business card extraction application."""
     
-    def __init__(self, db_type='mysql', host='localhost', user='root', password='root', database='business_cards', port=None, sqlite_path=None):
+    def __init__(self, db_type='postgresql', host='localhost', user='postgres', password='postgres', database='business_cards', port=None, sqlite_path=None):
         """
         Initialize database connection.
         
         Args:
-            db_type (str): Database type ('mysql', 'postgresql', 'sqlite')
-            host (str): MySQL host address
-            user (str): MySQL username
-            password (str): MySQL password
+            db_type (str): Database type ('postgresql', 'sqlite')
+            host (str): PostgreSQL host address
+            user (str): PostgreSQL username
+            password (str): PostgreSQL password
             database (str): Database name
-            port (int): MySQL port
+            port (int): PostgreSQL port
             sqlite_path (str): Path to SQLite database file
         """
-        # Normalize database type to lowercase
-        self.db_type = db_type.lower() if db_type else 'mysql'
+        # Only support postgresql and sqlite
+        self.db_type = db_type.lower() if db_type else 'postgresql'
         self.host = host
         self.user = user
         self.password = password
@@ -47,17 +47,14 @@ class DatabaseManager:
         self.connect()
     
     def get_connection_string(self):
-        if self.db_type == 'mysql':
-            port = self.port or 3306
-            return f"mysql+mysqlconnector://{self.user}:{self.password}@{self.host}:{port}/{self.database}"
-        elif self.db_type == 'postgresql':
+        if self.db_type == 'postgresql':
             port = self.port or 5432
             return f"postgresql+psycopg2://{self.user}:{self.password}@{self.host}:{port}/{self.database}"
         elif self.db_type == 'sqlite':
             path = self.sqlite_path or f"{self.database}.db"
             return f"sqlite:///{path}"
         else:
-            raise ValueError(f"Unsupported database type: {self.db_type}. Supported types: mysql, postgresql, sqlite")
+            raise ValueError(f"Unsupported database type: {self.db_type}. Supported types: postgresql, sqlite")
     
     def connect(self):
         """
@@ -607,13 +604,12 @@ db_manager = DatabaseManager()
 
 
 def set_db_config(db_type, host, user, password, database, port=None, sqlite_path=None):
-    """Set database configuration and reinitialize the global database manager."""
+    """Set database configuration and reinitialize the global database manager. Only supports postgresql and sqlite."""
     global db_manager
     try:
-        # Normalize database type to lowercase
-        db_type_normalized = db_type.lower() if db_type else 'mysql'
-        
-        # Create new database manager instance
+        db_type_normalized = db_type.lower() if db_type else 'postgresql'
+        if db_type_normalized not in ['postgresql', 'sqlite']:
+            db_type_normalized = 'postgresql'
         db_manager = DatabaseManager(
             db_type=db_type_normalized,
             host=host,
@@ -623,12 +619,10 @@ def set_db_config(db_type, host, user, password, database, port=None, sqlite_pat
             port=port,
             sqlite_path=sqlite_path
         )
-        
         logger.info(f"Database configuration updated: {db_type_normalized}")
         return True
     except Exception as e:
         logger.error(f"Error setting database configuration: {e}")
-        # Fallback to default configuration
         db_manager = DatabaseManager()
         return False
 
