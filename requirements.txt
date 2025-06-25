@@ -12,8 +12,7 @@ easyocr>=1.7.0
 torch>=2.2.0
 torchvision>=0.17.0
 
-# Database connectors - Stable versions
-mysql-connector-python>=8.3.0
+# Database connectors - PostgreSQL only (Supabase)
 psycopg2-binary>=2.9.9
 sqlalchemy>=2.0.30
 

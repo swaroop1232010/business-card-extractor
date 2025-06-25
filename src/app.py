@@ -1,6 +1,6 @@
 """
 Business Card Extraction Web Application - Enhanced UI
-Streamlit app for extracting business card information from images and storing in MySQL database.
+Streamlit app for extracting business card information from images and storing in Supabase database.
 """
 
 import streamlit as st
@@ -207,7 +207,7 @@ def extract_business_cards():
         if not st.session_state.get('extracting', False):
             if st.button("🚀 Extract Information for All Cards", key="extract_all", disabled=st.session_state.get('extracting', False)):
                 st.session_state['extracting'] = True
-                st.experimental_rerun()
+                st.rerun()
 
         # Extraction process
         if st.session_state.get('extracting', False) and not st.session_state.get('extraction_done', False):
@@ -314,7 +314,7 @@ def extract_business_cards():
                 
                 st.session_state['extraction_done'] = True
                 st.session_state['extracting'] = False
-                st.experimental_rerun()
+                st.rerun()
 
         # Show extracted data and save buttons
         if st.session_state.get('extraction_done', False):
@@ -332,7 +332,7 @@ def extract_business_cards():
                     st.session_state.pop(f'extracted_data_{idx}', None)
                 st.session_state['extraction_done'] = False
                 st.session_state['extracting'] = False
-                st.experimental_rerun()
+                st.rerun()
 
     # Disable all other UI actions while extracting
     if st.session_state.get('extracting', False):
@@ -464,7 +464,7 @@ def view_contacts():
         with export_col3:
             if st.button("🔄 Refresh Data", type="secondary", use_container_width=True):
                 clear_contact_cache()
-                st.experimental_rerun()
+                st.rerun()
         
         with export_col4:
             if st.button("🔍 Check Duplicates", type="secondary", use_container_width=True):
@@ -647,19 +647,19 @@ def show_contacts_table_with_actions(df):
                 if st.button("👁️ View Details", key=f"view_{selected_id}", use_container_width=True):
                     st.session_state['popup_action'] = 'view'
                     st.session_state['popup_contact_id'] = selected_id
-                    st.experimental_rerun()
+                    st.rerun()
             
             with col2:
                 if st.button("✏️ Edit Contact", key=f"edit_{selected_id}", use_container_width=True):
                     st.session_state['popup_action'] = 'edit'
                     st.session_state['popup_contact_id'] = selected_id
-                    st.experimental_rerun()
+                    st.rerun()
             
             with col3:
                 if st.button("🗑️ Delete Contact", key=f"delete_{selected_id}", use_container_width=True):
                     st.session_state['popup_action'] = 'delete'
                     st.session_state['popup_contact_id'] = selected_id
-                    st.experimental_rerun()
+                    st.rerun()
             
             with col4:
                 if st.button("📋 Copy Details", key=f"copy_{selected_id}", use_container_width=True):
@@ -708,7 +708,7 @@ Address: {selected_contact.get('address', 'N/A')}
                                         st.session_state['popup_contact_id'] = None
                                         st.session_state["action_row"] = None
                                         st.session_state["action_type"] = None
-                                        st.experimental_rerun()
+                                        st.rerun()
                                     else:
                                         st.error("❌ Failed to delete contact")
                                 except Exception as e:
@@ -720,13 +720,13 @@ Address: {selected_contact.get('address', 'N/A')}
                                 st.session_state['popup_contact_id'] = None
                                 st.session_state["action_row"] = None
                                 st.session_state["action_type"] = None
-                                st.experimental_rerun()
+                                st.rerun()
                     if st.button("❌ Close Dialog", key=f"close_dialog_{contact_id}"):
                         st.session_state['popup_action'] = None
                         st.session_state['popup_contact_id'] = None
                         st.session_state["action_row"] = None
                         st.session_state["action_type"] = None
-                        st.experimental_rerun()
+                        st.rerun()
                     st.markdown('</div>', unsafe_allow_html=True)
     
     else:
@@ -840,7 +840,7 @@ def edit_contact_form(contact_id, contact_data):
                     st.session_state['popup_contact_id'] = None
                     st.session_state["action_row"] = None
                     st.session_state["action_type"] = None
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error("❌ Failed to update contact")
             except Exception as e:
@@ -852,10 +852,10 @@ def edit_contact_form(contact_id, contact_data):
             st.session_state['popup_contact_id'] = None
             st.session_state["action_row"] = None
             st.session_state["action_type"] = None
-            st.experimental_rerun()
+            st.rerun()
             
         elif reset_button:
-            st.experimental_rerun()
+            st.rerun()
 
 
 def show_settings():
@@ -870,7 +870,7 @@ def show_settings():
         st.markdown("""
         **Application Version:** 1.0.0
         **Python Version:** 3.8+
-        **Database:** MySQL
+        **Database:** Supabase (PostgreSQL)
         **OCR Engine:** EasyOCR
         **Image Processing:** OpenCV
         """)
@@ -888,7 +888,7 @@ def show_settings():
         st.markdown("### 🛠️ Troubleshooting")
         st.markdown("""
         **Common Issues:**
-        - Database connection failed → Check MySQL settings
+        - Database connection failed → Check Supabase settings
         - No text extracted → Improve image quality
         - Import errors → Use the provided CSV template
         - Module errors → Activate virtual environment
@@ -900,7 +900,7 @@ def show_settings():
         - Check the troubleshooting section
         - Review error messages carefully
         - Ensure all dependencies are installed
-        - Verify database connectivity
+        - Verify Supabase connectivity
         """)
     
     # Test system components
@@ -1204,10 +1204,10 @@ def run_system_test():
         st.error("❌ Streamlit - Failed")
     
     try:
-        import mysql.connector
-        st.success("✅ MySQL Connector - OK")
+        import psycopg2
+        st.success("✅ PostgreSQL Connector (psycopg2) - OK")
     except:
-        st.error("❌ MySQL Connector - Failed")
+        st.error("❌ PostgreSQL Connector (psycopg2) - Failed")
     
     try:
         import pandas
@@ -1235,21 +1235,18 @@ def show_database_error_message(error_msg):
         
         The database you're trying to connect to doesn't exist. Here's how to fix it:
         
-        **For PostgreSQL:**
+        **For Supabase/PostgreSQL:**
         1. Open your PostgreSQL client (pgAdmin, DBeaver, or command line)
-        2. Connect to your PostgreSQL server
-        3. Create a new database named `business_cards`
-        4. Try connecting again
+        2. Connect to your Supabase PostgreSQL server
+        3. Create a new database named `postgres` (or your preferred name)
+        4. Update the configuration with the correct database name
+        5. Try connecting again
         
-        **For MySQL:**
-        1. Open MySQL Workbench or command line
-        2. Connect to your MySQL server
+        **For Local PostgreSQL:**
+        1. Open your PostgreSQL client
+        2. Connect to your PostgreSQL server
         3. Run: `CREATE DATABASE business_cards;`
         4. Try connecting again
-        
-        **For SQLite:**
-        - The database file will be created automatically
-        - Make sure the directory exists and is writable
         """)
     elif "connection" in error_msg.lower() and "failed" in error_msg.lower():
         st.error("""
@@ -1259,7 +1256,7 @@ def show_database_error_message(error_msg):
         
         **Connection Settings:**
         - ✅ Host address is correct
-        - ✅ Port number is correct (MySQL: 3306, PostgreSQL: 5432)
+        - ✅ Port number is correct (PostgreSQL: 5432)
         - ✅ Username and password are correct
         - ✅ Database server is running
         
@@ -1268,6 +1265,7 @@ def show_database_error_message(error_msg):
         - Check firewall settings
         - Verify network connectivity
         - Ensure the database user has proper permissions
+        - For Supabase: Check if your IP is whitelisted
         """)
     elif "authentication" in error_msg.lower() or "password" in error_msg.lower():
         st.error("""
@@ -1280,8 +1278,8 @@ def show_database_error_message(error_msg):
         - ✅ User has access to the specified database
         - ✅ User has proper permissions
         
+        **For Supabase:** Check your connection string and credentials
         **For PostgreSQL:** Make sure the user exists and has proper privileges
-        **For MySQL:** Verify the user can connect from your host
         """)
     elif "permission" in error_msg.lower() or "access" in error_msg.lower():
         st.error("""
@@ -1291,7 +1289,7 @@ def show_database_error_message(error_msg):
         
         - Grant necessary permissions to the user
         - For PostgreSQL: `GRANT ALL PRIVILEGES ON DATABASE business_cards TO username;`
-        - For MySQL: `GRANT ALL PRIVILEGES ON business_cards.* TO 'username'@'host';`
+        - For Supabase: Check your database policies and RLS settings
         - Contact your database administrator if needed
         """)
     else:

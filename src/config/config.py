@@ -53,13 +53,11 @@ OCR_CONFIG = {
 def get_supabase_db_config() -> tuple:
     """Get database configuration with Supabase defaults for deployment."""
     return (
-        "postgresql",
         SUPABASE_DEFAULTS["host"],
         SUPABASE_DEFAULTS["user"],
         SUPABASE_DEFAULTS["password"],
         SUPABASE_DEFAULTS["database"],
-        SUPABASE_DEFAULTS["port"],
-        None
+        int(SUPABASE_DEFAULTS["port"])
     )
 
 def is_production() -> bool:
@@ -70,7 +68,7 @@ def get_deployment_info() -> Dict[str, Any]:
     """Get deployment information."""
     return {
         "environment": "production" if is_production() else "development",
-        "database": "Supabase" if is_production() else "Local",
+        "database": "Supabase",
         "supabase_host": SUPABASE_DEFAULTS["host"],
         "supabase_user": SUPABASE_DEFAULTS["user"]
     } 

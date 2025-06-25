@@ -1,6 +1,6 @@
 """
 Database Module for Business Card Extraction
-Supports MySQL, PostgreSQL, and SQLite using SQLAlchemy.
+Supports PostgreSQL (Supabase) using SQLAlchemy.
 """
 
 from sqlalchemy import create_engine, text, MetaData, Table, Column, Integer, String, TIMESTAMP
@@ -22,39 +22,28 @@ logger = logging.getLogger(__name__)
 class DatabaseManager:
     """Database manager for business card extraction application."""
     
-    def __init__(self, db_type='postgresql', host='localhost', user='postgres', password='postgres', database='business_cards', port=None, sqlite_path=None):
+    def __init__(self, host='localhost', user='postgres', password='postgres', database='business_cards', port=5432):
         """
         Initialize database connection.
         
         Args:
-            db_type (str): Database type ('postgresql', 'sqlite')
             host (str): PostgreSQL host address
             user (str): PostgreSQL username
             password (str): PostgreSQL password
             database (str): Database name
             port (int): PostgreSQL port
-            sqlite_path (str): Path to SQLite database file
         """
-        # Only support postgresql and sqlite
-        self.db_type = db_type.lower() if db_type else 'postgresql'
         self.host = host
         self.user = user
         self.password = password
         self.database = database
         self.port = port
-        self.sqlite_path = sqlite_path
         self.engine = None
         self.connect()
     
     def get_connection_string(self):
-        if self.db_type == 'postgresql':
-            port = self.port or 5432
-            return f"postgresql+psycopg2://{self.user}:{self.password}@{self.host}:{port}/{self.database}"
-        elif self.db_type == 'sqlite':
-            path = self.sqlite_path or f"{self.database}.db"
-            return f"sqlite:///{path}"
-        else:
-            raise ValueError(f"Unsupported database type: {self.db_type}. Supported types: postgresql, sqlite")
+        """Get PostgreSQL connection string."""
+        return f"postgresql+psycopg2://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
     
     def connect(self):
         """
@@ -66,7 +55,7 @@ class DatabaseManager:
         try:
             conn_str = self.get_connection_string()
             self.engine = create_engine(conn_str, echo=False, future=True)
-            logger.info(f"Connected to {self.db_type} database.")
+            logger.info(f"Connected to postgresql database.")
             self.ensure_contacts_table()
             return True
         except Exception as e:
@@ -603,23 +592,18 @@ class DatabaseManager:
 db_manager = DatabaseManager()
 
 
-def set_db_config(db_type, host, user, password, database, port=None, sqlite_path=None):
-    """Set database configuration and reinitialize the global database manager. Only supports postgresql and sqlite."""
+def set_db_config(host, user, password, database, port=5432):
+    """Set database configuration and reinitialize the global database manager. Only supports postgresql."""
     global db_manager
     try:
-        db_type_normalized = db_type.lower() if db_type else 'postgresql'
-        if db_type_normalized not in ['postgresql', 'sqlite']:
-            db_type_normalized = 'postgresql'
         db_manager = DatabaseManager(
-            db_type=db_type_normalized,
             host=host,
             user=user,
             password=password,
             database=database,
-            port=port,
-            sqlite_path=sqlite_path
+            port=port
         )
-        logger.info(f"Database configuration updated: {db_type_normalized}")
+        logger.info(f"Database configuration updated: postgresql")
         return True
     except Exception as e:
         logger.error(f"Error setting database configuration: {e}")

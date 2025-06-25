@@ -1,13 +1,9 @@
--- Business Card Extraction Database Setup
--- This script creates the database and table for storing extracted business card information
+-- Business Card Extraction Database Setup (PostgreSQL/Supabase)
+-- This script creates the table for storing extracted business card information
 
--- Create the database
-CREATE DATABASE IF NOT EXISTS business_cards;
-USE business_cards;
-
--- Create the contacts table
+-- Create the contacts table (database should already exist in Supabase)
 CREATE TABLE IF NOT EXISTS contacts (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     name VARCHAR(100),
     designation VARCHAR(100),
     company VARCHAR(100),
@@ -19,9 +15,9 @@ CREATE TABLE IF NOT EXISTS contacts (
 );
 
 -- Add index for better query performance
-CREATE INDEX idx_name ON contacts(name);
-CREATE INDEX idx_company ON contacts(company);
-CREATE INDEX idx_created_at ON contacts(created_at);
+CREATE INDEX IF NOT EXISTS idx_name ON contacts(name);
+CREATE INDEX IF NOT EXISTS idx_company ON contacts(company);
+CREATE INDEX IF NOT EXISTS idx_created_at ON contacts(created_at);
 
 -- Display table structure
-DESCRIBE contacts; 
+\d contacts; 
