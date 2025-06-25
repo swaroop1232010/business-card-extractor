@@ -98,6 +98,7 @@ def main():
       .contact-actions-row button, .contact-actions-row .stButton { min-width: 0; font-size: 1.1em; padding: 0.5em 0.2em; }
       .stMetric { font-size: 1.1em !important; }
       .stSelectbox, .stTextInput, .stTextArea { font-size: 1em !important; }
+      .desktop-only { display: none !important; }
     }
     @media (min-width: 601px) {
       .mobile-row { display: flex; flex-direction: column; }
@@ -448,7 +449,9 @@ def view_contacts():
         if len(contacts_df) == 0:
             st.info("📭 No contacts found in database")
             return
-        # Responsive stats row
+        # Hide on mobile
+        st.markdown('<div class="desktop-only">', unsafe_allow_html=True)
+        st.markdown("### 📊 All Contacts")
         st.markdown('<div class="mobile-row">', unsafe_allow_html=True)
         col1, col2, col3, col4 = st.columns(4)
         with col1:
@@ -459,6 +462,7 @@ def view_contacts():
             st.metric("With Email", len(contacts_df[contacts_df['email'].notna() & (contacts_df['email'] != '')]))
         with col4:
             st.metric("With Phone", len(contacts_df[contacts_df['phone'].notna() & (contacts_df['phone'] != '')]))
+        st.markdown('</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         # Export functionality
         st.markdown("### 📤 Export Options")
